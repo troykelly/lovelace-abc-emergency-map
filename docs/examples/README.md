@@ -20,12 +20,16 @@ Copy-paste examples for common use cases.
 
 ## Quick Reference
 
-### Minimal
+### Minimal (with incidents)
 
 ```yaml
 type: custom:abc-emergency-map-card
 title: Emergency Map
+geo_location_sources:
+  - sensor.abc_emergency_YOUR_INSTANCE_incidents_total
 ```
+
+> **Note:** You must configure `geo_location_sources` to display incidents. Replace `YOUR_INSTANCE` with your integration instance name.
 
 ### With Entity Tracking
 

@@ -84,6 +84,7 @@ If the button above doesn't work:
 4. Click **Add Card**
 5. Search for **ABC Emergency Map Card**
 6. Configure using the visual editor
+7. **Important:** Add your ABC Emergency sensor to the "Geo-Location Sources" field
 
 ### Using YAML
 
@@ -97,21 +98,36 @@ If the button above doesn't work:
 ```yaml
 type: custom:abc-emergency-map-card
 title: Emergency Map
+geo_location_sources:
+  - sensor.abc_emergency_YOUR_INSTANCE_incidents_total
 ```
+
+Replace `YOUR_INSTANCE` with your ABC Emergency integration instance name.
 
 ---
 
 ## Basic Configuration
 
-The simplest configuration just requires the card type:
+The minimum configuration requires specifying your incident data source:
 
 ```yaml
 type: custom:abc-emergency-map-card
 title: Emergency Map
+geo_location_sources:
+  - sensor.abc_emergency_auremer_incidents_total
 ```
 
+> **Important:** You must configure `geo_location_sources` to tell the card where to find incident data. This is the sensor entity from the ABC Emergency integration that lists incident entity IDs. Without this, the map will be empty.
+
+### Finding Your Sensor Name
+
+1. Go to **Developer Tools** > **States** in Home Assistant
+2. Filter for `sensor.abc_emergency`
+3. Look for sensors ending in `_incidents_total`, `_bushfires`, `_floods`, etc.
+4. Use the full entity ID in your configuration
+
 This will:
-- Display all ABC Emergency incidents as polygons
+- Display ABC Emergency incidents as polygons
 - Show the Australian Warning System colors
 - Auto-fit the map to show all incidents
 - Enable animations for new/updated incidents

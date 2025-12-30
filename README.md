@@ -105,9 +105,13 @@ Click the button below to add this card to HACS:
 ```yaml
 type: custom:abc-emergency-map-card
 title: Emergency Map
+geo_location_sources:
+  - sensor.abc_emergency_YOUR_INSTANCE_incidents_total
 ```
 
-That's it! The card will automatically display incidents from the ABC Emergency integration.
+Replace `YOUR_INSTANCE` with your ABC Emergency integration instance name (e.g., `auremer`, `treehouse`).
+
+> **Important:** You must configure `geo_location_sources` to specify which ABC Emergency sensor provides the incident data. Without this, no incidents will be displayed.
 
 ### Manual Installation
 
