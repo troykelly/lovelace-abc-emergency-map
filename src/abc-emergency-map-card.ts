@@ -10,6 +10,12 @@ import { customElement, property, state } from "lit/decorators.js";
 import type { HomeAssistant } from "custom-card-helpers";
 import { styles } from "./styles";
 import type { ABCEmergencyMapCardConfig, TileProviderConfig } from "./types";
+import {
+  ALERT_COLORS,
+  DEFAULT_SHOW_BADGE,
+  DEFAULT_SHOW_NEW_INDICATOR,
+  NEW_INCIDENT_THRESHOLD_MS,
+} from "./types";
 import { loadLeaflet } from "./leaflet-loader";
 import { resolveTileProvider } from "./tile-providers";
 import { EntityMarkerManager, getConfiguredEntities } from "./entity-markers";
@@ -36,6 +42,9 @@ export class ABCEmergencyMapCard extends LitElement {
   @state() private _config?: ABCEmergencyMapCardConfig;
   @state() private _loadingState: LoadingState = "loading";
   @state() private _errorMessage?: string;
+  @state() private _incidentCount: number = 0;
+  @state() private _newIncidentCount: number = 0;
+  @state() private _highestSeverity: string = "minor";
 
   /** Leaflet map instance */
   private _map?: LeafletMap;
@@ -95,15 +104,43 @@ export class ABCEmergencyMapCard extends LitElement {
       return html`<ha-card>Invalid configuration</ha-card>`;
     }
 
+    const showBadge = this._config.show_badge ?? DEFAULT_SHOW_BADGE;
+    const showNewIndicator = this._config.show_new_indicator ?? DEFAULT_SHOW_NEW_INDICATOR;
+
     return html`
       <ha-card>
-        ${this._config.title
-          ? html`<div class="card-header">${this._config.title}</div>`
+        ${this._config.title || (showBadge && this._incidentCount > 0)
+          ? html`
+            <div class="card-header">
+              <span class="header-title">${this._config.title || ""}</span>
+              ${showBadge && this._incidentCount > 0
+                ? this._renderBadge(showNewIndicator)
+                : ""}
+            </div>
+          `
           : ""}
         <div class="map-wrapper">
           ${this._renderMapContent()}
         </div>
       </ha-card>
+    `;
+  }
+
+  /**
+   * Renders the incident count badge.
+   */
+  private _renderBadge(showNewIndicator: boolean): TemplateResult {
+    const badgeColor = ALERT_COLORS[this._highestSeverity] || ALERT_COLORS.minor;
+    const newBadge = showNewIndicator && this._newIncidentCount > 0
+      ? html`<span class="badge-new">+${this._newIncidentCount} new</span>`
+      : "";
+
+    return html`
+      <div class="incident-badge" style="background: ${badgeColor};">
+        <ha-icon icon="mdi:alert"></ha-icon>
+        <span class="badge-count">${this._incidentCount}</span>
+        ${newBadge}
+      </div>
     `;
   }
 
@@ -470,6 +507,9 @@ export class ABCEmergencyMapCard extends LitElement {
     if (this._incidentManager) {
       this._incidentManager.updateConfig(this._config);
       this._incidentManager.updateIncidents(this.hass);
+
+      // Update badge data
+      this._updateBadgeData();
     }
 
     // Update bounds manager config and fit to all positions
@@ -497,6 +537,53 @@ export class ABCEmergencyMapCard extends LitElement {
       // Fit bounds to show all positions
       this._boundsManager.fitToPositions(positions);
     }
+  }
+
+  /**
+   * Updates badge data based on current incidents.
+   */
+  private _updateBadgeData(): void {
+    if (!this.hass) return;
+
+    // Get all ABC Emergency entities
+    const entityIds = Object.keys(this.hass.states).filter(
+      (id) => id.startsWith("geo_location.abc_emergency")
+    );
+
+    let count = 0;
+    let newCount = 0;
+    let highestSeverity = "minor";
+    const severityOrder = ["minor", "moderate", "severe", "extreme"];
+    const now = Date.now();
+
+    for (const entityId of entityIds) {
+      const entity = this.hass.states[entityId];
+      if (!entity) continue;
+
+      count++;
+
+      // Check if incident is "new" based on last_updated timestamp
+      const lastUpdated = entity.last_updated || entity.last_changed;
+      if (lastUpdated) {
+        const updatedTime = new Date(lastUpdated).getTime();
+        if (now - updatedTime < NEW_INCIDENT_THRESHOLD_MS) {
+          newCount++;
+        }
+      }
+
+      // Track highest severity
+      const alertLevel = (entity.attributes.alert_level as string)?.toLowerCase() || "minor";
+      const currentIndex = severityOrder.indexOf(highestSeverity);
+      const newIndex = severityOrder.indexOf(alertLevel);
+      if (newIndex > currentIndex) {
+        highestSeverity = alertLevel;
+      }
+    }
+
+    // Update state (triggers re-render if changed)
+    this._incidentCount = count;
+    this._newIncidentCount = newCount;
+    this._highestSeverity = highestSeverity;
   }
 
   /**

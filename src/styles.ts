@@ -15,9 +15,46 @@ export const styles = css`
   }
 
   .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     padding: 16px 16px 0;
     font-size: 1.2em;
     font-weight: 500;
+  }
+
+  .header-title {
+    flex: 1;
+  }
+
+  /* Incident count badge */
+  .incident-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 16px;
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .incident-badge ha-icon {
+    --mdc-icon-size: 16px;
+  }
+
+  .badge-count {
+    font-weight: 700;
+  }
+
+  .badge-new {
+    font-size: 11px;
+    font-weight: 400;
+    opacity: 0.9;
+    margin-left: 4px;
+    padding-left: 6px;
+    border-left: 1px solid rgba(255, 255, 255, 0.3);
   }
 
   .map-wrapper {

@@ -88,6 +88,12 @@ export interface ABCEmergencyMapCardConfig extends LovelaceCardConfig {
   geometry_transitions?: boolean;
   /** Duration of geometry transition in milliseconds (default: 500) */
   transition_duration?: number;
+  /** Whether to show incident count badge (default: true) */
+  show_badge?: boolean;
+  /** Whether to show new incident indicators (default: true) */
+  show_new_indicator?: boolean;
+  /** Badge position (default: "top-right") */
+  badge_position?: "top-left" | "top-right" | "bottom-left" | "bottom-right";
 }
 
 export interface EmergencyIncident {
@@ -224,6 +230,18 @@ export const DEFAULT_GEOMETRY_TRANSITIONS = true;
 
 /** Default geometry transition duration in milliseconds */
 export const DEFAULT_TRANSITION_DURATION = 500;
+
+/** Default show badge setting */
+export const DEFAULT_SHOW_BADGE = true;
+
+/** Default show new indicator setting */
+export const DEFAULT_SHOW_NEW_INDICATOR = true;
+
+/** Default badge position */
+export const DEFAULT_BADGE_POSITION = "top-right";
+
+/** Duration in ms for an incident to be considered "new" */
+export const NEW_INCIDENT_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
 
 /**
  * A single history point with timestamp and coordinates.
