@@ -25,6 +25,9 @@ import { HistoryTrailManager } from "./history-trails";
 import { IncidentPolygonManager } from "./incident-polygons";
 import type { Map as LeafletMap, TileLayer } from "leaflet";
 
+// Import editor component so it's bundled
+import "./editor";
+
 // Note: The global L declaration is in leaflet-types.d.ts
 
 /** Default center point for Australia */
