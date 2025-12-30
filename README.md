@@ -1,40 +1,105 @@
+<div align="center">
+
 # ABC Emergency Map Card
 
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
-[![GitHub Release](https://img.shields.io/github/release/troykelly/lovelace-abc-emergency-map.svg)](https://github.com/troykelly/lovelace-abc-emergency-map/releases)
+### Interactive Emergency Incident Map for Home Assistant
 
-A custom Lovelace card for Home Assistant that displays Australian emergency incidents on an interactive map with polygon boundaries.
+[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge)](https://github.com/hacs/integration)
+[![GitHub Release](https://img.shields.io/github/release/troykelly/lovelace-abc-emergency-map.svg?style=for-the-badge)](https://github.com/troykelly/lovelace-abc-emergency-map/releases)
+[![GitHub Activity](https://img.shields.io/github/commit-activity/y/troykelly/lovelace-abc-emergency-map.svg?style=for-the-badge)](https://github.com/troykelly/lovelace-abc-emergency-map/commits/main)
+[![License](https://img.shields.io/github/license/troykelly/lovelace-abc-emergency-map.svg?style=for-the-badge)](LICENSE)
+
+[![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2024.1+-blue.svg?style=for-the-badge&logo=home-assistant)](https://www.home-assistant.io/)
+[![Leaflet](https://img.shields.io/badge/Leaflet-1.9.4-199900.svg?style=for-the-badge&logo=leaflet)](https://leafletjs.com/)
+
+**A custom Lovelace card that displays Australian emergency incidents on an interactive map with polygon boundaries, animations, and the Australian Warning System color scheme.**
+
+[Getting Started](docs/getting-started.md) | [Configuration](docs/configuration.md) | [Features](docs/features.md) | [Troubleshooting](docs/troubleshooting.md)
+
+---
+
+![ABC Emergency Map Card Examples](docs/images/maps_example.png)
+
+*Card showing various configurations: All Incidents, Watch & Act filtering, Bushfires only, Incidents Affecting Home, Emergency Warnings, and Zones overlay*
+
+</div>
+
+---
+
+## Why This Card?
+
+Home Assistant's native map card only supports **point markers**. Emergency incidents often have **polygon boundaries** (fire perimeters, flood zones, storm cells) that are critical for situational awareness.
+
+This card uses [Leaflet.js](https://leafletjs.com/) to render those polygons while maintaining full compatibility with standard Home Assistant map card features.
+
+| Feature | Native HA Map | ABC Emergency Map Card |
+|---------|---------------|------------------------|
+| Point markers | Yes | Yes |
+| Entity tracking | Yes | Yes |
+| Zone display | Yes | Yes |
+| History trails | Yes | Yes |
+| **Polygon boundaries** | No | **Yes** |
+| **Alert level colors** | No | **Yes** |
+| **Incident animations** | No | **Yes** |
+| **Severity-based layering** | No | **Yes** |
+
+---
 
 ## Features
 
-- **Polygon Rendering**: Renders emergency incident boundaries as polygons (not just points)
-- **Australian Warning System Colors**:
-  - **Emergency Warning** (Red) - Highest level, immediate danger
-  - **Watch and Act** (Orange) - Heightened threat, take action
-  - **Advice** (Yellow) - Incident active, stay informed
-  - **Information** (Blue) - General information
-- **Animations**: Pulse/glow effects for new and updated incidents
-- **Smooth Transitions**: Morphing polygon boundaries when incidents update
-- **Badge Notifications**: Incident count badge with severity indicator
-- **Entity Markers**: Display person, device_tracker, and geo_location entities
-- **Zone Rendering**: Show Home Assistant zones on the map
-- **History Trails**: Display entity movement history
-- **Theme Support**: Auto-detects HA theme (light/dark), or set manually
-- **Responsive Design**: Works on mobile, tablet, and desktop
-- **Accessibility**: WCAG 2.1 AA compliant with keyboard navigation and screen reader support
-- **Visual Editor**: Full configuration UI in Lovelace
+### Emergency Incident Display
+- **Polygon Rendering** - Incident boundaries displayed as actual polygons, not just points
+- **Australian Warning System Colors** - Severity-based coloring (Emergency Warning, Watch and Act, Advice, Information)
+- **Severity Layering** - Higher severity incidents render on top for visibility
+- **Smooth Transitions** - Morphing polygon boundaries when incidents update
 
-## Installation
+### Animations
+- **Pulse Effects** - New incidents glow/pulse to draw attention
+- **Update Animations** - Visual feedback when incident data changes
+- **Badge Notifications** - Incident count with severity indicator
 
-### HACS (Recommended)
+### Home Assistant Integration
+- **Entity Markers** - Display person, device_tracker, and geo_location entities
+- **Zone Rendering** - Show Home Assistant zones as circles
+- **History Trails** - Display entity movement history
+- **Theme Support** - Auto-detects HA theme (light/dark)
+
+### Accessibility & UX
+- **WCAG 2.1 AA Compliant** - Keyboard navigation, screen reader support
+- **Responsive Design** - Works on mobile, tablet, and desktop
+- **Visual Editor** - Full configuration UI in Lovelace
+- **Reduced Motion** - Respects user preferences
+
+---
+
+## Quick Start
+
+### Prerequisites
+
+1. **Home Assistant 2024.1+**
+2. **[ABC Emergency Integration](https://github.com/troykelly/homeassistant-abcemergency)** installed and configured
+
+### Installation via HACS (Recommended)
 
 1. Open HACS in Home Assistant
-2. Go to Frontend > Custom repositories
-3. Add `https://github.com/troykelly/lovelace-abc-emergency-map` as a Lovelace plugin
-4. Install "ABC Emergency Map Card"
-5. Add the resource in your Lovelace configuration
+2. Go to **Frontend** > **Custom repositories**
+3. Add `https://github.com/troykelly/lovelace-abc-emergency-map` as type **Lovelace**
+4. Install **ABC Emergency Map Card**
+5. Refresh your browser (Ctrl+F5)
+
+### Basic Configuration
+
+```yaml
+type: custom:abc-emergency-map-card
+title: Emergency Map
+```
+
+That's it! The card will automatically display incidents from the ABC Emergency integration.
 
 ### Manual Installation
+
+<details>
+<summary>Click to expand manual installation steps</summary>
 
 1. Download `abc-emergency-map-card.js` from the [latest release](https://github.com/troykelly/lovelace-abc-emergency-map/releases)
 2. Copy to `config/www/community/abc-emergency-map-card/`
@@ -46,96 +111,84 @@ resources:
     type: module
 ```
 
-## Configuration
+</details>
 
-### Basic Configuration
+---
+
+## Configuration Options
+
+### Common Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `title` | string | - | Card title |
+| `entities` | string[] | - | Entities to display (person, device_tracker) |
+| `default_zoom` | number | 10 | Initial zoom level (1-20) |
+| `hours_to_show` | number | 24 | Hours of history to display |
+| `dark_mode` | string | auto | Theme mode: `auto`, `light`, `dark` |
+
+### Display Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `show_zones` | boolean | true | Show Home Assistant zones |
+| `show_warning_levels` | boolean | true | Show ABC Emergency polygons |
+| `show_history` | boolean | false | Show entity movement trails |
+| `show_badge` | boolean | true | Show incident count badge |
+| `auto_fit` | boolean | true | Auto-zoom to show all entities |
+
+### Dynamic Entity Discovery
+
+Use `geo_location_sources` to dynamically discover incidents from ABC Emergency sensors:
 
 ```yaml
 type: custom:abc-emergency-map-card
-title: Emergency Map
+title: Watch & Act Incidents
+geo_location_sources:
+  - sensor.abc_emergency_auremer_watch_and_acts
 ```
 
-### Full Configuration
+See the [full configuration reference](docs/configuration.md) for all 40+ options.
 
-```yaml
-type: custom:abc-emergency-map-card
-title: Emergency Map
-entity: person.john                    # Primary entity to track
-entities:                              # Additional entities
-  - device_tracker.phone
-  - person.jane
-default_zoom: 10                       # Initial zoom level (1-20)
-hours_to_show: 24                      # Hours of history to display
+---
 
-# Map Settings
-tile_provider: osm                     # osm, cartodb, mapbox, custom
-dark_mode: auto                        # auto, light, dark
-auto_fit: true                         # Auto-zoom to show all entities
-fit_padding: 50                        # Padding for auto-fit in pixels
-fit_max_zoom: 17                       # Maximum zoom for auto-fit
+## Australian Warning System
 
-# Display Options
-show_zones: true                       # Show Home Assistant zones
-show_warning_levels: true              # Show ABC Emergency polygons
-show_history: false                    # Show entity movement trails
-show_badge: true                       # Show incident count badge
-show_new_indicator: true               # Show "new" count in badge
+This card uses the official Australian Warning System color scheme:
 
-# Zone Styling
-zone_color: "#4285f4"                  # Zone fill color
-zone_opacity: 0.2                      # Zone fill opacity (0-1)
-zone_border_opacity: 0.5               # Zone border opacity (0-1)
+| Level | Color | Meaning |
+|-------|-------|---------|
+| **Emergency Warning** | Red (#cc0000) | You are in immediate danger and need to take action now |
+| **Watch and Act** | Orange (#ff6600) | Conditions are changing - prepare to take action |
+| **Advice** | Yellow (#ffcc00) | An incident is occurring - stay informed |
+| **Information** | Blue (#3366cc) | General information about an event |
 
-# History Trails
-history_entities:                      # Specific entities to show history for
-  - person.john
-history_line_weight: 3                 # Trail line weight in pixels
+For more details, see [Australian Warning System reference](docs/australian-warning-system.md).
 
-# Animations
-animations_enabled: true               # Enable pulse/glow effects
-animation_duration: 2000               # Animation duration in ms
-geometry_transitions: true             # Smooth polygon morphing
-transition_duration: 500               # Transition duration in ms
-
-# Badge
-badge_position: top-right              # top-left, top-right, bottom-left, bottom-right
-
-# Mapbox (if using tile_provider: mapbox)
-api_key: your_mapbox_api_key
-
-# Custom Tiles (if using tile_provider: custom)
-tile_url: "https://{s}.tile.example.com/{z}/{x}/{y}.png"
-tile_attribution: "Custom Attribution"
-```
-
-### Tile Providers
-
-| Provider | Description | API Key Required |
-|----------|-------------|------------------|
-| `osm` | OpenStreetMap (default) | No |
-| `cartodb` | CartoDB Voyager/Dark tiles | No |
-| `mapbox` | Mapbox Streets/Dark tiles | Yes |
-| `custom` | Your own tile server | Depends |
-
-### Theme Modes
-
-| Mode | Description |
-|------|-------------|
-| `auto` | Follows Home Assistant theme setting (default) |
-| `light` | Always use light map tiles |
-| `dark` | Always use dark map tiles |
+---
 
 ## Keyboard Navigation
 
 When the map is focused:
-- **Arrow keys**: Pan the map
-- **+ / -**: Zoom in/out
-- **Home**: Reset view to fit all content
 
-## Requirements
+| Key | Action |
+|-----|--------|
+| Arrow keys | Pan the map |
+| `+` / `-` | Zoom in/out |
+| `Home` | Reset view to fit all content |
 
-- Home Assistant 2024.1+
-- [ABC Emergency Integration](https://github.com/troykelly/homeassistant-abcemergency)
+---
+
+## Documentation
+
+- [Getting Started Guide](docs/getting-started.md) - First-time setup
+- [Configuration Reference](docs/configuration.md) - All configuration options
+- [Features Documentation](docs/features.md) - Detailed feature explanations
+- [Troubleshooting](docs/troubleshooting.md) - Common issues and solutions
+- [Generic GeoJSON Guide](docs/generic-geojson.md) - Using with non-ABC sources
+- [Example Configurations](docs/examples/) - Copy-paste examples
+
+---
 
 ## Development
 
@@ -147,26 +200,36 @@ pnpm run lint     # ESLint
 pnpm run typecheck # TypeScript check
 ```
 
-See [CONTEXT.md](CONTEXT.md) for detailed development setup instructions.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines.
 
-## Why Leaflet 1.9.4?
+---
 
-This card uses **Leaflet 1.9.4** rather than the newer 2.0.0-alpha. Here's why:
+## Safety Notice
 
-| Concern | Leaflet 1.9.4 | Leaflet 2.0.0-alpha |
-|---------|---------------|---------------------|
-| **Stability** | Production-ready | Alpha (expect bugs) |
-| **SRI Security** | Available | Not available |
-| **Plugin Ecosystem** | Full compatibility | Most plugins not updated |
-| **API Stability** | Stable | May change before release |
+> **This card is for informational purposes only.**
+>
+> Always follow official emergency services advice. Do not rely solely on this card for emergency decisions. If you are in danger, call **000** (Australia) immediately.
+>
+> For official emergency information, visit [ABC Emergency](https://www.abc.net.au/emergency) or your state emergency services.
 
-**Leaflet 2.0 stable is targeted for November 2025.** We plan to migrate once:
-- The stable release is published
-- SRI hashes are available for CDN integrity verification
-- Core plugins we may need are updated
+---
 
-If you're interested in tracking this, see the [Leaflet 2.0 discussion](https://github.com/Leaflet/Leaflet/discussions/9719).
+## Related Projects
+
+- [ABC Emergency Integration](https://github.com/troykelly/homeassistant-abcemergency) - The backend integration that provides incident data
+
+---
 
 ## License
 
-MIT
+MIT License - see [LICENSE](LICENSE) for details.
+
+---
+
+<div align="center">
+
+**Made with care for the Australian Home Assistant community**
+
+*This project is not affiliated with or endorsed by the Australian Broadcasting Corporation (ABC) or any emergency services agency.*
+
+</div>
