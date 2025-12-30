@@ -189,4 +189,31 @@ export const styles = css`
     color: var(--secondary-text-color, #888);
     font-style: italic;
   }
+
+  /* Fit to entities control button */
+  .fit-control {
+    margin-top: 10px;
+  }
+
+  .fit-control-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    background: var(--card-background-color, white) !important;
+    color: var(--primary-text-color, #333) !important;
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  .fit-control-button:hover {
+    background: var(--secondary-background-color, #f5f5f5) !important;
+  }
+
+  .fit-control-button ha-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
 `;

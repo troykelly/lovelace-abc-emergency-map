@@ -68,6 +68,12 @@ export interface ABCEmergencyMapCardConfig extends LovelaceCardConfig {
   zone_opacity?: number;
   /** Zone border opacity 0-1 (default: 0.5) */
   zone_border_opacity?: number;
+  /** Whether to auto-fit bounds to show all entities/zones on load (default: true) */
+  auto_fit?: boolean;
+  /** Padding for fit bounds in pixels [vertical, horizontal] or single value (default: 50) */
+  fit_padding?: number | [number, number];
+  /** Maximum zoom level when auto-fitting bounds (default: 17) */
+  fit_max_zoom?: number;
 }
 
 export interface EmergencyIncident {
@@ -171,3 +177,12 @@ export const DEFAULT_ZONE_OPACITY = 0.2;
 
 /** Default zone border opacity */
 export const DEFAULT_ZONE_BORDER_OPACITY = 0.5;
+
+/** Default auto-fit enabled */
+export const DEFAULT_AUTO_FIT = true;
+
+/** Default fit bounds padding in pixels */
+export const DEFAULT_FIT_PADDING = 50;
+
+/** Default maximum zoom level when auto-fitting */
+export const DEFAULT_FIT_MAX_ZOOM = 17;

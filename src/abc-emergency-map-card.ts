@@ -14,6 +14,7 @@ import { loadLeaflet } from "./leaflet-loader";
 import { resolveTileProvider } from "./tile-providers";
 import { EntityMarkerManager, getConfiguredEntities } from "./entity-markers";
 import { ZoneManager, getAllZones } from "./zone-renderer";
+import { BoundsManager } from "./bounds-manager";
 import type { Map as LeafletMap, TileLayer } from "leaflet";
 
 // Note: The global L declaration is in leaflet-types.d.ts
@@ -48,6 +49,9 @@ export class ABCEmergencyMapCard extends LitElement {
 
   /** Zone renderer manager */
   private _zoneManager?: ZoneManager;
+
+  /** Bounds manager for auto-fit functionality */
+  private _boundsManager?: BoundsManager;
 
   /** ResizeObserver for container size changes */
   private _resizeObserver?: ResizeObserver;
@@ -209,6 +213,10 @@ export class ABCEmergencyMapCard extends LitElement {
 
       // Initialize zone renderer (zones render below markers)
       this._zoneManager = new ZoneManager(this._map, this._config!);
+
+      // Initialize bounds manager for auto-fit functionality
+      this._boundsManager = new BoundsManager(this._map, this._config!);
+      this._boundsManager.addFitControl();
 
       // Set up ResizeObserver for container size changes
       this._setupResizeObserver(mapContainer);
@@ -376,6 +384,12 @@ export class ABCEmergencyMapCard extends LitElement {
       this._zoneManager = undefined;
     }
 
+    // Destroy bounds manager
+    if (this._boundsManager) {
+      this._boundsManager.destroy();
+      this._boundsManager = undefined;
+    }
+
     // Clear tile config cache
     this._currentTileConfig = undefined;
 
@@ -413,6 +427,25 @@ export class ABCEmergencyMapCard extends LitElement {
     if (this._markerManager) {
       const entities = getConfiguredEntities(this.hass, this._config);
       this._markerManager.updateMarkers(entities);
+    }
+
+    // Update bounds manager config and fit to all positions
+    if (this._boundsManager) {
+      this._boundsManager.updateConfig(this._config);
+
+      // Collect all positions from markers and zones
+      const positions: [number, number][] = [];
+
+      if (this._markerManager) {
+        positions.push(...this._markerManager.getMarkerPositions());
+      }
+
+      if (this._zoneManager) {
+        positions.push(...this._zoneManager.getZonePositions());
+      }
+
+      // Fit bounds to show all positions
+      this._boundsManager.fitToPositions(positions);
     }
 
     // ABC Emergency GeoJSON polygon rendering will be implemented in Issue #8
