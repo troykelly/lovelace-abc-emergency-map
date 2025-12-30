@@ -16,7 +16,7 @@ import type {
 } from "leaflet";
 import type { ABCEmergencyMapCardConfig, EmergencyIncident } from "./types";
 import {
-  ALERT_COLORS,
+  getAlertColor,
   DEFAULT_ANIMATIONS_ENABLED,
   DEFAULT_ANIMATION_DURATION,
   DEFAULT_GEOMETRY_TRANSITIONS,
@@ -169,9 +169,11 @@ function isValidGeometry(obj: unknown): obj is GeoJSONGeometry {
 
 /**
  * Gets the style for a polygon based on its alert level.
+ * @param alertLevel - The alert level (extreme, severe, moderate, minor)
+ * @param config - Optional card configuration for custom colors
  */
-function getPolygonStyle(alertLevel: string): PathOptions {
-  const color = ALERT_COLORS[alertLevel] || ALERT_COLORS.minor;
+function getPolygonStyle(alertLevel: string, config?: ABCEmergencyMapCardConfig): PathOptions {
+  const color = getAlertColor(alertLevel, config);
 
   return {
     color: color,
@@ -612,7 +614,7 @@ export class IncidentPolygonManager {
   ): void {
     const existingLayer = this._layers.get(entityId);
     const feature = createFeature(incident, geometry);
-    const style = getPolygonStyle(incident.alert_level);
+    const style = getPolygonStyle(incident.alert_level, this._config);
 
     // Check if geometry has changed for smooth transitions
     const geometryChanged = this._hasGeometryChanged(entityId, geometry);
@@ -696,7 +698,7 @@ export class IncidentPolygonManager {
    * Binds a popup to a polygon layer.
    */
   private _bindPopup(layer: Layer, incident: EmergencyIncident): void {
-    const alertColor = ALERT_COLORS[incident.alert_level] || ALERT_COLORS.minor;
+    const alertColor = getAlertColor(incident.alert_level, this._config);
     const alertLabel = this._getAlertLabel(incident.alert_level);
     const relativeTime = formatRelativeTime(incident.last_updated);
 
@@ -812,7 +814,7 @@ export class IncidentPolygonManager {
     animationType: "new" | "updated" | "extreme"
   ): void {
     // Set CSS custom properties for animation
-    const alertColor = ALERT_COLORS[incident.alert_level] || ALERT_COLORS.minor;
+    const alertColor = getAlertColor(incident.alert_level, this._config);
     element.style.setProperty("--incident-glow-color", `${alertColor}80`);
     element.style.setProperty("--incident-animation-duration", this._getAnimationDuration());
 

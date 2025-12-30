@@ -119,6 +119,23 @@ export interface ABCEmergencyMapCardConfig extends LovelaceCardConfig {
    * - binary_sensor.abc_emergency_*_inside_polygon (incidents containing location)
    */
   geo_location_sources?: string[];
+  /**
+   * Color preset for alert levels.
+   * Built-in options: "australian" (default), "us_nws", "eu_meteo", "high_contrast"
+   */
+  alert_color_preset?: AlertColorPreset;
+  /**
+   * Custom alert level colors. Overrides preset colors for specified levels.
+   * Partial configuration is allowed - unspecified levels use preset/default colors.
+   *
+   * Example:
+   * ```yaml
+   * alert_colors:
+   *   extreme: "#ff0000"
+   *   severe: "#ff8800"
+   * ```
+   */
+  alert_colors?: AlertColorsConfig;
 }
 
 export interface EmergencyIncident {
@@ -186,16 +203,109 @@ export const DOMAIN_COLORS: Record<MarkerEntityDomain, string> = {
   geo_location: "#FF9800", // Orange
 };
 
+/**
+ * Valid alert level names.
+ */
+export type AlertLevel = "extreme" | "severe" | "moderate" | "minor";
+
+/**
+ * Map of alert levels to color strings.
+ */
 export type AlertLevelColors = {
-  [key: string]: string;
+  [K in AlertLevel]: string;
 };
 
+/**
+ * Partial alert colors for user configuration (allows overriding individual levels).
+ */
+export type AlertColorsConfig = Partial<AlertLevelColors>;
+
+/**
+ * Available color preset identifiers.
+ * - australian: Default Australian Warning System (red/orange/yellow/blue)
+ * - us_nws: US National Weather Service style (red/orange/yellow/cyan)
+ * - eu_meteo: European Meteorological style (red/orange/yellow/green)
+ * - high_contrast: Accessibility-focused darker variants
+ */
+export type AlertColorPreset = "australian" | "us_nws" | "eu_meteo" | "high_contrast";
+
+/**
+ * Default alert colors (Australian Warning System).
+ */
 export const ALERT_COLORS: AlertLevelColors = {
   extreme: "#cc0000", // Emergency Warning - Red
   severe: "#ff6600", // Watch and Act - Orange
   moderate: "#ffcc00", // Advice - Yellow
   minor: "#3366cc", // Information - Blue
 };
+
+/**
+ * Built-in color presets for different regions/use cases.
+ */
+export const ALERT_COLOR_PRESETS: Record<AlertColorPreset, AlertLevelColors> = {
+  /** Australian Warning System (default) */
+  australian: {
+    extreme: "#cc0000", // Emergency Warning - Red
+    severe: "#ff6600", // Watch and Act - Orange
+    moderate: "#ffcc00", // Advice - Yellow
+    minor: "#3366cc", // Information - Blue
+  },
+  /** US National Weather Service inspired */
+  us_nws: {
+    extreme: "#cc0000", // Warning - Red
+    severe: "#ff6600", // Watch - Orange
+    moderate: "#ffcc00", // Advisory - Yellow
+    minor: "#00bfff", // Statement - Cyan
+  },
+  /** European Meteorological services inspired */
+  eu_meteo: {
+    extreme: "#cc0000", // Red alert
+    severe: "#ff6600", // Orange alert
+    moderate: "#ffcc00", // Yellow alert
+    minor: "#33cc33", // Green alert
+  },
+  /** High contrast for accessibility */
+  high_contrast: {
+    extreme: "#990000", // Darker red
+    severe: "#cc5500", // Darker orange
+    moderate: "#ccaa00", // Darker yellow
+    minor: "#003399", // Darker blue
+  },
+};
+
+/** Default alert color preset */
+export const DEFAULT_ALERT_COLOR_PRESET: AlertColorPreset = "australian";
+
+/**
+ * Resolves the color for a given alert level based on configuration.
+ * Priority: config.alert_colors[level] → preset colors → default colors
+ *
+ * @param level - The alert level to get color for
+ * @param config - Card configuration (optional)
+ * @returns The resolved color string
+ */
+export function getAlertColor(
+  level: string,
+  config?: { alert_colors?: AlertColorsConfig; alert_color_preset?: AlertColorPreset }
+): string {
+  // Normalize level to valid AlertLevel
+  const normalizedLevel = (["extreme", "severe", "moderate", "minor"].includes(level)
+    ? level
+    : "minor") as AlertLevel;
+
+  // Check for custom color override first
+  if (config?.alert_colors?.[normalizedLevel]) {
+    return config.alert_colors[normalizedLevel]!;
+  }
+
+  // Check for preset
+  if (config?.alert_color_preset && ALERT_COLOR_PRESETS[config.alert_color_preset]) {
+    return ALERT_COLOR_PRESETS[config.alert_color_preset][normalizedLevel];
+  }
+
+  // Fall back to default (Australian) colors
+  return ALERT_COLORS[normalizedLevel];
+}
 
 /**
  * Zone data extracted from Home Assistant zone entities.

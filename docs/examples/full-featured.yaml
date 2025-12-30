@@ -61,6 +61,21 @@ show_badge: true
 show_new_indicator: true
 
 # ═══════════════════════════════════════════════════════════════
+# ALERT COLORS
+# ═══════════════════════════════════════════════════════════════
+
+# Color preset: australian (default), us_nws, eu_meteo, high_contrast
+alert_color_preset: australian
+
+# Override specific alert level colors (optional)
+# Uncomment and customize as needed:
+# alert_colors:
+#   extreme: "#cc0000"   # Red - Emergency Warning
+#   severe: "#ff6600"    # Orange - Watch and Act
+#   moderate: "#ffcc00"  # Yellow - Advice
+#   minor: "#3366cc"     # Blue - Information
+
+# ═══════════════════════════════════════════════════════════════
 # ZONE STYLING
 # ═══════════════════════════════════════════════════════════════
 

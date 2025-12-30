@@ -15,6 +15,7 @@ Copy-paste examples for common use cases.
 | [zone-focused.yaml](zone-focused.yaml) | Emphasize zone boundaries |
 | [filtered-incidents.yaml](filtered-incidents.yaml) | Show specific incident types |
 | [dashboard-panel.yaml](dashboard-panel.yaml) | Full dashboard panel view |
+| [custom-colors.yaml](custom-colors.yaml) | Custom alert level colors and presets |
 
 ---
 
