@@ -9,6 +9,7 @@ Complete reference for all ABC Emergency Map Card configuration options.
 - [Core Settings](#core-settings)
 - [Map Settings](#map-settings)
 - [Display Options](#display-options)
+- [Alert Colors](#alert-colors)
 - [Zone Styling](#zone-styling)
 - [History Trails](#history-trails)
 - [Animations](#animations)
@@ -121,6 +122,72 @@ show_history: true
 show_badge: true
 show_new_indicator: true
 ```
+
+---
+
+## Alert Colors
+
+Customize the colors used for incident severity levels. By default, the card uses the Australian Warning System color scheme.
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `alert_color_preset` | string | `australian` | Color preset: `australian`, `us_nws`, `eu_meteo`, `high_contrast` |
+| `alert_colors` | object | - | Custom colors for individual alert levels (overrides preset) |
+
+### Color Presets
+
+| Preset | Extreme | Severe | Moderate | Minor | Description |
+|--------|---------|--------|----------|-------|-------------|
+| `australian` | Red (#cc0000) | Orange (#ff6600) | Yellow (#ffcc00) | Blue (#3366cc) | Australian Warning System (default) |
+| `us_nws` | Red (#cc0000) | Orange (#ff6600) | Yellow (#ffcc00) | Cyan (#00bfff) | US National Weather Service style |
+| `eu_meteo` | Red (#cc0000) | Orange (#ff6600) | Yellow (#ffcc00) | Green (#33cc33) | European Meteorological style |
+| `high_contrast` | Dark Red (#990000) | Dark Orange (#cc5500) | Dark Yellow (#ccaa00) | Dark Blue (#003399) | Accessibility-focused darker variants |
+
+### Example: Using a Preset
+
+```yaml
+type: custom:abc-emergency-map-card
+geo_location_sources:
+  - sensor.abc_emergency_auremer_incidents_total
+alert_color_preset: us_nws
+```
+
+### Example: Custom Colors
+
+Override individual alert levels with custom colors:
+
+```yaml
+type: custom:abc-emergency-map-card
+geo_location_sources:
+  - sensor.abc_emergency_auremer_incidents_total
+alert_colors:
+  extreme: "#ff0000"
+  severe: "#ff8800"
+  moderate: "#ffdd00"
+  minor: "#0088ff"
+```
+
+### Example: Preset with Overrides
+
+Start with a preset and override specific levels:
+
+```yaml
+type: custom:abc-emergency-map-card
+geo_location_sources:
+  - sensor.abc_emergency_auremer_incidents_total
+alert_color_preset: australian
+alert_colors:
+  minor: "#00ff00"  # Override just the minor level
+```
+
+### Alert Level Mapping
+
+| Level | Australian Term | US NWS Term | Meaning |
+|-------|-----------------|-------------|---------|
+| `extreme` | Emergency Warning | Warning | Immediate danger - take action now |
+| `severe` | Watch and Act | Watch | Conditions changing - prepare to act |
+| `moderate` | Advice | Advisory | Incident occurring - stay informed |
+| `minor` | Information | Statement | General information |
 
 ---
 
@@ -384,6 +451,12 @@ show_warning_levels: true
 show_history: true
 show_badge: true
 show_new_indicator: true
+
+# Alert Colors
+alert_color_preset: australian
+alert_colors:
+  # Override specific levels if needed
+  # extreme: "#ff0000"
 
 # Zone Styling
 zone_color: "#4285f4"

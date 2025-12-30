@@ -233,20 +233,41 @@ alert_level = SEVERITY_MAP.get(raw_level, "minor")
 
 ---
 
+## Customizing Colors
+
+You can customize the alert level colors to match your data source or regional conventions.
+
+### Using Presets
+
+Choose from built-in color presets:
+
+```yaml
+type: custom:abc-emergency-map-card
+geo_location_sources:
+  - sensor.my_custom_geojson_feed
+alert_color_preset: us_nws  # or: australian, eu_meteo, high_contrast
+```
+
+### Custom Colors
+
+Override individual alert levels:
+
+```yaml
+type: custom:abc-emergency-map-card
+geo_location_sources:
+  - sensor.calfire_active_incidents
+alert_colors:
+  extreme: "#ff0000"  # Cal Fire red
+  severe: "#ff6600"
+  moderate: "#ffcc00"
+  minor: "#00ff00"    # Green for info
+```
+
+See [Configuration - Alert Colors](configuration.md#alert-colors) for all options.
+
+---
+
 ## Current Limitations
-
-### Hardcoded Colors
-
-Alert level colors are currently hardcoded to the Australian Warning System:
-
-| Level | Color |
-|-------|-------|
-| `extreme` | Red (#cc0000) |
-| `severe` | Orange (#ff6600) |
-| `moderate` | Yellow (#ffcc00) |
-| `minor` | Blue (#3366cc) |
-
-> **Coming Soon:** Customizable color schemes are planned in [Epic #44](https://github.com/troykelly/lovelace-abc-emergency-map/issues/44).
 
 ### Alert Level Values
 

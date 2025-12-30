@@ -1,0 +1,84 @@
+# Custom Alert Colors Examples
+# Demonstrates different color customization options
+
+# Example 1: US National Weather Service Style
+# Uses cyan for minor alerts instead of blue
+type: custom:abc-emergency-map-card
+title: US NWS Colors
+geo_location_sources:
+  - sensor.abc_emergency_auremer_incidents_total
+alert_color_preset: us_nws
+
+---
+
+# Example 2: European Meteorological Style
+# Uses green for minor alerts
+type: custom:abc-emergency-map-card
+title: EU Meteo Colors
+geo_location_sources:
+  - sensor.abc_emergency_auremer_incidents_total
+alert_color_preset: eu_meteo
+
+---
+
+# Example 3: High Contrast for Accessibility
+# Darker color variants for better visibility
+type: custom:abc-emergency-map-card
+title: High Contrast
+geo_location_sources:
+  - sensor.abc_emergency_auremer_incidents_total
+alert_color_preset: high_contrast
+
+---
+
+# Example 4: Fully Custom Colors
+# Define your own colors for each alert level
+type: custom:abc-emergency-map-card
+title: My Custom Colors
+geo_location_sources:
+  - sensor.abc_emergency_auremer_incidents_total
+alert_colors:
+  extreme: "#ff0000"    # Bright red
+  severe: "#ff8800"     # Orange
+  moderate: "#ffdd00"   # Yellow
+  minor: "#0088ff"      # Sky blue
+
+---
+
+# Example 5: Preset with Selective Overrides
+# Start with Australian colors but override minor level
+type: custom:abc-emergency-map-card
+title: Custom Minor Color
+geo_location_sources:
+  - sensor.abc_emergency_auremer_incidents_total
+alert_color_preset: australian
+alert_colors:
+  minor: "#00cc00"  # Green instead of blue
+
+---
+
+# Example 6: Cal Fire / US Wildfire Colors
+# Custom colors matching US wildfire incident maps
+type: custom:abc-emergency-map-card
+title: Cal Fire Incidents
+geo_location_sources:
+  - sensor.calfire_active_incidents
+alert_colors:
+  extreme: "#cc0000"    # Red - active fire
+  severe: "#ff6600"     # Orange - contained
+  moderate: "#ffcc00"   # Yellow - controlled
+  minor: "#00cc00"      # Green - out
+
+---
+
+# Example 7: Color-Blind Friendly
+# Uses patterns of brightness rather than relying solely on hue
+type: custom:abc-emergency-map-card
+title: Color-Blind Friendly
+geo_location_sources:
+  - sensor.abc_emergency_auremer_incidents_total
+alert_colors:
+  extreme: "#990000"    # Dark red
+  severe: "#cc6600"     # Dark orange
+  moderate: "#999900"   # Olive/dark yellow
+  minor: "#004080"      # Dark blue

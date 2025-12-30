@@ -7,7 +7,7 @@ Detailed documentation of all ABC Emergency Map Card features.
 ## Table of Contents
 
 - [Polygon Rendering](#polygon-rendering)
-- [Australian Warning System Colors](#australian-warning-system-colors)
+- [Alert Level Colors](#alert-level-colors)
 - [Animations](#animations)
 - [Entity Markers](#entity-markers)
 - [Zone Rendering](#zone-rendering)
@@ -59,11 +59,11 @@ show_warning_levels: true  # Enable polygon rendering (default)
 
 ---
 
-## Australian Warning System Colors
+## Alert Level Colors
 
-The card uses official Australian Warning System colors for incident severity.
+The card uses configurable color schemes for incident severity. The default is the official Australian Warning System colors.
 
-### Color Reference
+### Default Colors (Australian Warning System)
 
 | Level | Color | Hex | Meaning |
 |-------|-------|-----|---------|
@@ -72,18 +72,43 @@ The card uses official Australian Warning System colors for incident severity.
 | **Advice** | Yellow | `#ffcc00` | Incident active - stay informed |
 | **Information** | Blue | `#3366cc` | General information |
 
+### International Color Presets
+
+The card includes color presets for different regions:
+
+| Preset | Description | Minor Color Difference |
+|--------|-------------|------------------------|
+| `australian` | Australian Warning System (default) | Blue (#3366cc) |
+| `us_nws` | US National Weather Service style | Cyan (#00bfff) |
+| `eu_meteo` | European Meteorological style | Green (#33cc33) |
+| `high_contrast` | Accessibility-focused darker variants | Dark Blue (#003399) |
+
+### Custom Colors
+
+You can override any or all alert level colors:
+
+```yaml
+type: custom:abc-emergency-map-card
+alert_color_preset: australian  # Optional: start with a preset
+alert_colors:                    # Override specific levels
+  extreme: "#ff0000"
+  severe: "#ff8800"
+  moderate: "#ffdd00"
+  minor: "#0088ff"
+```
+
 ### Visual Treatment
 
 Each alert level has specific styling:
 
 | Level | Fill | Border | Animation |
 |-------|------|--------|-----------|
-| Extreme | Semi-transparent red | Solid red | Persistent pulse |
-| Severe | Semi-transparent orange | Solid orange | Pulse on new |
-| Moderate | Semi-transparent yellow | Solid yellow | None |
-| Minor | Semi-transparent blue | Solid blue | None |
+| Extreme | Semi-transparent | Solid color | Persistent pulse |
+| Severe | Semi-transparent | Solid color | Pulse on new |
+| Moderate | Semi-transparent | Solid color | None |
+| Minor | Semi-transparent | Solid color | None |
 
-For detailed information, see [Australian Warning System Reference](australian-warning-system.md).
+For detailed information, see [Australian Warning System Reference](australian-warning-system.md) and [Configuration - Alert Colors](configuration.md#alert-colors).
 
 ---
 
