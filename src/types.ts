@@ -74,6 +74,12 @@ export interface ABCEmergencyMapCardConfig extends LovelaceCardConfig {
   fit_padding?: number | [number, number];
   /** Maximum zoom level when auto-fitting bounds (default: 17) */
   fit_max_zoom?: number;
+  /** Whether to show history trails for entities (default: false) */
+  show_history?: boolean;
+  /** Specific entities to show history for (defaults to all configured entities) */
+  history_entities?: string[];
+  /** Trail line weight in pixels (default: 3) */
+  history_line_weight?: number;
 }
 
 export interface EmergencyIncident {
@@ -186,3 +192,36 @@ export const DEFAULT_FIT_PADDING = 50;
 
 /** Default maximum zoom level when auto-fitting */
 export const DEFAULT_FIT_MAX_ZOOM = 17;
+
+/** Default show history setting */
+export const DEFAULT_SHOW_HISTORY = false;
+
+/** Default history line weight in pixels */
+export const DEFAULT_HISTORY_LINE_WEIGHT = 3;
+
+/** Default hours to show for history trails */
+export const DEFAULT_HOURS_TO_SHOW = 24;
+
+/**
+ * A single history point with timestamp and coordinates.
+ */
+export interface HistoryPoint {
+  /** Timestamp of the history point */
+  timestamp: Date;
+  /** Latitude coordinate */
+  latitude: number;
+  /** Longitude coordinate */
+  longitude: number;
+}
+
+/**
+ * Entity history data for trail rendering.
+ */
+export interface EntityHistoryData {
+  /** Entity ID */
+  entityId: string;
+  /** Entity color for the trail */
+  color: string;
+  /** Array of history points in chronological order */
+  points: HistoryPoint[];
+}

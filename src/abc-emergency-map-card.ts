@@ -15,6 +15,7 @@ import { resolveTileProvider } from "./tile-providers";
 import { EntityMarkerManager, getConfiguredEntities } from "./entity-markers";
 import { ZoneManager, getAllZones } from "./zone-renderer";
 import { BoundsManager } from "./bounds-manager";
+import { HistoryTrailManager } from "./history-trails";
 import type { Map as LeafletMap, TileLayer } from "leaflet";
 
 // Note: The global L declaration is in leaflet-types.d.ts
@@ -52,6 +53,9 @@ export class ABCEmergencyMapCard extends LitElement {
 
   /** Bounds manager for auto-fit functionality */
   private _boundsManager?: BoundsManager;
+
+  /** History trail manager */
+  private _historyManager?: HistoryTrailManager;
 
   /** ResizeObserver for container size changes */
   private _resizeObserver?: ResizeObserver;
@@ -217,6 +221,9 @@ export class ABCEmergencyMapCard extends LitElement {
       // Initialize bounds manager for auto-fit functionality
       this._boundsManager = new BoundsManager(this._map, this._config!);
       this._boundsManager.addFitControl();
+
+      // Initialize history trail manager (renders below markers)
+      this._historyManager = new HistoryTrailManager(this._map, this._config!);
 
       // Set up ResizeObserver for container size changes
       this._setupResizeObserver(mapContainer);
@@ -390,6 +397,12 @@ export class ABCEmergencyMapCard extends LitElement {
       this._boundsManager = undefined;
     }
 
+    // Destroy history manager
+    if (this._historyManager) {
+      this._historyManager.destroy();
+      this._historyManager = undefined;
+    }
+
     // Clear tile config cache
     this._currentTileConfig = undefined;
 
@@ -409,7 +422,7 @@ export class ABCEmergencyMapCard extends LitElement {
 
   /**
    * Updates map data when entity states change.
-   * Renders zones, entity markers, and incident polygons.
+   * Renders zones, entity markers, history trails, and incident polygons.
    */
   private _updateMapData(): void {
     if (!this._map || !this.hass || !this._config) {
@@ -424,16 +437,27 @@ export class ABCEmergencyMapCard extends LitElement {
     }
 
     // Update entity markers
+    const entities = this._markerManager
+      ? getConfiguredEntities(this.hass, this._config)
+      : [];
+
     if (this._markerManager) {
-      const entities = getConfiguredEntities(this.hass, this._config);
       this._markerManager.updateMarkers(entities);
+    }
+
+    // Update history trails (async, will render when data arrives)
+    if (this._historyManager) {
+      this._historyManager.updateConfig(this._config);
+      const entityIds = entities.map((e) => e.entityId);
+      // Fire and forget - trails will update asynchronously
+      this._historyManager.updateTrails(this.hass, entityIds);
     }
 
     // Update bounds manager config and fit to all positions
     if (this._boundsManager) {
       this._boundsManager.updateConfig(this._config);
 
-      // Collect all positions from markers and zones
+      // Collect all positions from markers, zones, and history trails
       const positions: [number, number][] = [];
 
       if (this._markerManager) {
@@ -443,6 +467,9 @@ export class ABCEmergencyMapCard extends LitElement {
       if (this._zoneManager) {
         positions.push(...this._zoneManager.getZonePositions());
       }
+
+      // Note: History trail positions are not included in bounds calculation
+      // to avoid sudden map jumps when history loads
 
       // Fit bounds to show all positions
       this._boundsManager.fitToPositions(positions);
