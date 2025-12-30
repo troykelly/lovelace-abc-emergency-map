@@ -2,5 +2,6 @@
   "name": "ABC Emergency Map Card",
   "render_readme": true,
   "filename": "abc-emergency-map-card.js",
+  "homeassistant": "2024.1.0",
   "country": ["AU"]
 }
