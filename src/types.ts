@@ -80,6 +80,10 @@ export interface ABCEmergencyMapCardConfig extends LovelaceCardConfig {
   history_entities?: string[];
   /** Trail line weight in pixels (default: 3) */
   history_line_weight?: number;
+  /** Whether to enable incident animations (default: true) */
+  animations_enabled?: boolean;
+  /** Duration of pulse animation in milliseconds (default: 2000) */
+  animation_duration?: number;
 }
 
 export interface EmergencyIncident {
@@ -204,6 +208,12 @@ export const DEFAULT_HISTORY_LINE_WEIGHT = 3;
 
 /** Default hours to show for history trails */
 export const DEFAULT_HOURS_TO_SHOW = 24;
+
+/** Default animations enabled setting */
+export const DEFAULT_ANIMATIONS_ENABLED = true;
+
+/** Default animation duration in milliseconds */
+export const DEFAULT_ANIMATION_DURATION = 2000;
 
 /**
  * A single history point with timestamp and coordinates.

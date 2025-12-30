@@ -15,7 +15,11 @@ import type {
   LatLngBounds,
 } from "leaflet";
 import type { ABCEmergencyMapCardConfig, EmergencyIncident } from "./types";
-import { ALERT_COLORS } from "./types";
+import {
+  ALERT_COLORS,
+  DEFAULT_ANIMATIONS_ENABLED,
+  DEFAULT_ANIMATION_DURATION,
+} from "./types";
 
 /** Prefix for ABC Emergency geo_location entities */
 const ABC_EMERGENCY_PREFIX = "geo_location.abc_emergency";
@@ -215,10 +219,36 @@ export class IncidentPolygonManager {
   private _config: ABCEmergencyMapCardConfig;
   private _layers: Map<string, LeafletGeoJSON> = new Map();
   private _incidents: Map<string, EmergencyIncident> = new Map();
+  /** Track last known hash of each incident for change detection */
+  private _incidentHashes: Map<string, string> = new Map();
+  /** Track known entity IDs to detect new incidents */
+  private _knownEntityIds: Set<string> = new Set();
 
   constructor(map: LeafletMap, config: ABCEmergencyMapCardConfig) {
     this._map = map;
     this._config = config;
+  }
+
+  /**
+   * Creates a hash of incident data for change detection.
+   */
+  private _hashIncident(incident: EmergencyIncident): string {
+    return `${incident.alert_level}|${incident.headline}|${incident.alert_text}|${incident.last_updated}`;
+  }
+
+  /**
+   * Checks if animations are enabled.
+   */
+  private _animationsEnabled(): boolean {
+    return this._config.animations_enabled ?? DEFAULT_ANIMATIONS_ENABLED;
+  }
+
+  /**
+   * Gets the animation duration in seconds.
+   */
+  private _getAnimationDuration(): string {
+    const ms = this._config.animation_duration ?? DEFAULT_ANIMATION_DURATION;
+    return `${ms / 1000}s`;
   }
 
   /**
@@ -258,11 +288,20 @@ export class IncidentPolygonManager {
       const incident = extractIncidentData(entityId, entity);
       if (!incident) continue;
 
+      // Detect new vs updated incidents for animation
+      const isNew = !this._knownEntityIds.has(entityId);
+      const currentHash = this._hashIncident(incident);
+      const previousHash = this._incidentHashes.get(entityId);
+      const isUpdated = !isNew && previousHash !== currentHash;
+
+      // Update tracking state
       this._incidents.set(entityId, incident);
+      this._incidentHashes.set(entityId, currentHash);
+      this._knownEntityIds.add(entityId);
 
       const geometry = extractGeoJSON(entity);
       if (geometry) {
-        this._updatePolygonLayer(entityId, incident, geometry);
+        this._updatePolygonLayer(entityId, incident, geometry, isNew, isUpdated);
       } else {
         // Remove polygon layer if geometry was removed
         const existingLayer = this._layers.get(entityId);
@@ -280,7 +319,9 @@ export class IncidentPolygonManager {
   private _updatePolygonLayer(
     entityId: string,
     incident: EmergencyIncident,
-    geometry: GeoJSONGeometry
+    geometry: GeoJSONGeometry,
+    isNew: boolean = false,
+    isUpdated: boolean = false
   ): void {
     const existingLayer = this._layers.get(entityId);
     const feature = createFeature(incident, geometry);
@@ -291,6 +332,11 @@ export class IncidentPolygonManager {
       existingLayer.clearLayers();
       existingLayer.addData(feature as GeoJSON.Feature);
       existingLayer.setStyle(style);
+
+      // Apply update animation if data changed
+      if (isUpdated) {
+        this._applyAnimation(existingLayer, incident, "updated");
+      }
     } else {
       // Create new GeoJSON layer
       const layer = L.geoJSON(feature as GeoJSON.Feature, {
@@ -301,6 +347,19 @@ export class IncidentPolygonManager {
       }).addTo(this._map);
 
       this._layers.set(entityId, layer);
+
+      // Apply new incident animation
+      if (isNew) {
+        this._applyAnimation(layer, incident, "new");
+      }
+    }
+
+    // Apply persistent extreme animation for emergency warnings
+    if (incident.alert_level === "extreme") {
+      const layer = this._layers.get(entityId);
+      if (layer) {
+        this._applyAnimation(layer, incident, "extreme");
+      }
     }
   }
 
@@ -395,6 +454,61 @@ export class IncidentPolygonManager {
   }
 
   /**
+   * Applies animation to a GeoJSON layer.
+   */
+  private _applyAnimation(
+    layer: LeafletGeoJSON,
+    incident: EmergencyIncident,
+    animationType: "new" | "updated" | "extreme"
+  ): void {
+    if (!this._animationsEnabled()) {
+      return;
+    }
+
+    // Get the underlying SVG path elements from the layer
+    layer.eachLayer((sublayer) => {
+      const element = (sublayer as Layer & { getElement?: () => HTMLElement | undefined }).getElement?.();
+      if (element) {
+        this._applyAnimationToElement(element, incident, animationType);
+      }
+    });
+  }
+
+  /**
+   * Applies animation classes and styles to an SVG element.
+   */
+  private _applyAnimationToElement(
+    element: HTMLElement,
+    incident: EmergencyIncident,
+    animationType: "new" | "updated" | "extreme"
+  ): void {
+    // Set CSS custom properties for animation
+    const alertColor = ALERT_COLORS[incident.alert_level] || ALERT_COLORS.minor;
+    element.style.setProperty("--incident-glow-color", `${alertColor}80`);
+    element.style.setProperty("--incident-animation-duration", this._getAnimationDuration());
+
+    // Remove any existing animation classes
+    element.classList.remove(
+      "incident-layer-new",
+      "incident-layer-updated",
+      "incident-layer-extreme"
+    );
+
+    // Add appropriate animation class
+    switch (animationType) {
+      case "new":
+        element.classList.add("incident-layer-new");
+        break;
+      case "updated":
+        element.classList.add("incident-layer-updated");
+        break;
+      case "extreme":
+        element.classList.add("incident-layer-extreme");
+        break;
+    }
+  }
+
+  /**
    * Gets all polygon bounds for map fitting.
    */
   public getPolygonBounds(): LatLngBounds | null {
@@ -452,6 +566,8 @@ export class IncidentPolygonManager {
     }
     this._layers.clear();
     this._incidents.clear();
+    this._incidentHashes.clear();
+    this._knownEntityIds.clear();
   }
 
   /**

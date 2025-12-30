@@ -299,4 +299,73 @@ export const styles = css`
   .incident-popup-container .leaflet-popup-content-wrapper {
     padding: 0;
   }
+
+  /* Incident animation keyframes */
+  @keyframes incident-appear {
+    0% {
+      opacity: 0;
+      filter: drop-shadow(0 0 0 transparent);
+    }
+    30% {
+      opacity: 1;
+      filter: drop-shadow(0 0 12px var(--incident-glow-color, rgba(255, 102, 0, 0.8)));
+    }
+    100% {
+      opacity: 1;
+      filter: drop-shadow(0 0 0 transparent);
+    }
+  }
+
+  @keyframes incident-pulse {
+    0%, 100% {
+      filter: drop-shadow(0 0 0 transparent);
+    }
+    25% {
+      filter: drop-shadow(0 0 8px var(--incident-glow-color, rgba(255, 102, 0, 0.8)));
+    }
+    50% {
+      filter: drop-shadow(0 0 0 transparent);
+    }
+    75% {
+      filter: drop-shadow(0 0 8px var(--incident-glow-color, rgba(255, 102, 0, 0.8)));
+    }
+  }
+
+  @keyframes incident-glow-extreme {
+    0%, 100% {
+      filter: drop-shadow(0 0 4px rgba(204, 0, 0, 0.6));
+    }
+    50% {
+      filter: drop-shadow(0 0 12px rgba(204, 0, 0, 0.9));
+    }
+  }
+
+  /* Incident animation classes */
+  .incident-layer-new {
+    animation: incident-appear var(--incident-animation-duration, 2s) ease-out forwards;
+  }
+
+  .incident-layer-updated {
+    animation: incident-pulse var(--incident-animation-duration, 2s) ease-in-out;
+  }
+
+  .incident-layer-extreme {
+    animation: incident-glow-extreme 2s ease-in-out infinite;
+  }
+
+  /* Respect prefers-reduced-motion */
+  @media (prefers-reduced-motion: reduce) {
+    .incident-layer-new,
+    .incident-layer-updated,
+    .incident-layer-extreme {
+      animation: none !important;
+    }
+  }
+
+  /* Animation disabled via config */
+  .animations-disabled .incident-layer-new,
+  .animations-disabled .incident-layer-updated,
+  .animations-disabled .incident-layer-extreme {
+    animation: none !important;
+  }
 `;
