@@ -216,4 +216,36 @@ export const styles = css`
     align-items: center;
     justify-content: center;
   }
+
+  /* Incident popup styles */
+  .incident-popup {
+    font-size: 13px;
+    line-height: 1.4;
+    min-width: 180px;
+  }
+
+  .incident-popup-header {
+    margin-bottom: 4px;
+  }
+
+  .incident-popup-header strong {
+    color: var(--primary-text-color, #333);
+    font-size: 14px;
+  }
+
+  .incident-popup-body {
+    color: var(--secondary-text-color, #666);
+  }
+
+  .incident-popup-body small {
+    display: block;
+    margin-top: 4px;
+    line-height: 1.3;
+  }
+
+  .incident-alert-badge {
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
 `;
