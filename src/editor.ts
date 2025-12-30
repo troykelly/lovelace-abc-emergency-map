@@ -7,7 +7,8 @@
 import { LitElement, html, css, TemplateResult, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import type { HomeAssistant } from "custom-card-helpers";
-import type { ABCEmergencyMapCardConfig, TileProviderId, DarkModeSetting } from "./types";
+import type { ABCEmergencyMapCardConfig, TileProviderId, DarkModeSetting, AlertColorPreset, AlertLevel } from "./types";
+import { ALERT_COLOR_PRESETS, ALERT_COLORS } from "./types";
 
 /** Available tile provider options */
 const TILE_PROVIDERS: { value: TileProviderId; label: string }[] = [
@@ -22,6 +23,23 @@ const DARK_MODE_OPTIONS: { value: DarkModeSetting; label: string }[] = [
   { value: "auto", label: "Auto (from Home Assistant)" },
   { value: "light", label: "Always Light" },
   { value: "dark", label: "Always Dark" },
+];
+
+/** Alert color preset options */
+const ALERT_COLOR_PRESET_OPTIONS: { value: AlertColorPreset | "custom"; label: string }[] = [
+  { value: "australian", label: "Australian Warning System (Default)" },
+  { value: "us_nws", label: "US National Weather Service" },
+  { value: "eu_meteo", label: "European Meteorological" },
+  { value: "high_contrast", label: "High Contrast (Accessibility)" },
+  { value: "custom", label: "Custom Colors" },
+];
+
+/** Alert level labels for the color editor */
+const ALERT_LEVEL_LABELS: { level: AlertLevel; label: string }[] = [
+  { level: "extreme", label: "Emergency Warning" },
+  { level: "severe", label: "Watch and Act" },
+  { level: "moderate", label: "Advice" },
+  { level: "minor", label: "Information" },
 ];
 
 @customElement("abc-emergency-map-card-editor")
@@ -140,6 +158,75 @@ export class ABCEmergencyMapCardEditor extends LitElement {
       border-radius: 2px;
       font-family: monospace;
       font-size: 11px;
+    }
+
+    .color-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .color-swatch {
+      width: 32px;
+      height: 32px;
+      border-radius: 4px;
+      border: 1px solid var(--divider-color);
+      flex-shrink: 0;
+    }
+
+    .color-label {
+      flex: 1;
+      font-size: 14px;
+    }
+
+    .color-input {
+      width: 80px;
+      padding: 4px 8px;
+      border: 1px solid var(--divider-color);
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 12px;
+      background: var(--card-background-color);
+      color: var(--primary-text-color);
+    }
+
+    .color-input:focus {
+      outline: none;
+      border-color: var(--primary-color);
+    }
+
+    .color-picker-wrapper {
+      position: relative;
+    }
+
+    .color-picker {
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .color-preview-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+      padding: 8px;
+      background: var(--card-background-color);
+      border-radius: 4px;
+    }
+
+    .color-preview-swatch {
+      flex: 1;
+      height: 24px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 500;
     }
   `;
 
@@ -302,6 +389,47 @@ export class ABCEmergencyMapCardEditor extends LitElement {
             "show_badge",
             this._config.show_badge ?? true
           )}
+        </div>
+
+        <!-- Alert Colors -->
+        <div class="section">
+          <div class="section-title">Alert Colors</div>
+
+          <div class="form-row">
+            <ha-select
+              label="Color Preset"
+              .value=${this._getEffectivePreset()}
+              @selected=${this._alertColorPresetChanged}
+              @closed=${(e: Event) => e.stopPropagation()}
+            >
+              ${ALERT_COLOR_PRESET_OPTIONS.map(
+                (option) => html`
+                  <mwc-list-item .value=${option.value}>
+                    ${option.label}
+                  </mwc-list-item>
+                `
+              )}
+            </ha-select>
+          </div>
+
+          ${this._getEffectivePreset() === "custom" ? this._renderCustomColors() : nothing}
+
+          <!-- Color Preview -->
+          <div class="color-preview-row">
+            ${ALERT_LEVEL_LABELS.map(({ level, label }) => {
+              const color = this._getEffectiveColor(level);
+              const textColor = this._getContrastColor(color);
+              return html`
+                <div
+                  class="color-preview-swatch"
+                  style="background: ${color}; color: ${textColor};"
+                  title="${label}"
+                >
+                  ${level.charAt(0).toUpperCase()}
+                </div>
+              `;
+            })}
+          </div>
         </div>
 
         <!-- Dynamic Entity Sources -->
@@ -502,6 +630,134 @@ export class ABCEmergencyMapCardEditor extends LitElement {
 
     this._updateConfig({
       geo_location_sources: sources.length > 0 ? sources : undefined,
+    });
+  }
+
+  /**
+   * Gets the effective preset value for the dropdown.
+   * Returns "custom" if custom colors are defined, otherwise returns the preset or "australian".
+   */
+  private _getEffectivePreset(): AlertColorPreset | "custom" {
+    // If custom colors are defined, show "custom" in dropdown
+    if (this._config?.alert_colors && Object.keys(this._config.alert_colors).length > 0) {
+      return "custom";
+    }
+    return this._config?.alert_color_preset || "australian";
+  }
+
+  /**
+   * Gets the effective color for a given alert level based on config.
+   */
+  private _getEffectiveColor(level: AlertLevel): string {
+    // Check for custom color first
+    if (this._config?.alert_colors?.[level]) {
+      return this._config.alert_colors[level]!;
+    }
+    // Use preset colors
+    const preset = this._config?.alert_color_preset || "australian";
+    return ALERT_COLOR_PRESETS[preset]?.[level] || ALERT_COLORS[level];
+  }
+
+  /**
+   * Returns contrasting text color (black or white) based on background luminance.
+   */
+  private _getContrastColor(hexColor: string): string {
+    const hex = hexColor.replace("#", "");
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return luminance > 0.5 ? "#000000" : "#ffffff";
+  }
+
+  /**
+   * Handles alert color preset selection.
+   */
+  private _alertColorPresetChanged(ev: CustomEvent): void {
+    const target = ev.target as HTMLSelectElement;
+    const value = target.value as AlertColorPreset | "custom";
+
+    if (value === "custom") {
+      // When switching to custom, initialize with current effective colors
+      const customColors: Partial<Record<AlertLevel, string>> = {};
+      for (const { level } of ALERT_LEVEL_LABELS) {
+        customColors[level] = this._getEffectiveColor(level);
+      }
+      this._updateConfig({
+        alert_color_preset: undefined,
+        alert_colors: customColors,
+      });
+    } else {
+      // When selecting a preset, clear custom colors
+      this._updateConfig({
+        alert_color_preset: value,
+        alert_colors: undefined,
+      });
+    }
+  }
+
+  /**
+   * Renders custom color inputs for each alert level.
+   */
+  private _renderCustomColors(): TemplateResult {
+    return html`
+      <div class="form-row">
+        ${ALERT_LEVEL_LABELS.map(({ level, label }) => {
+          const color = this._config?.alert_colors?.[level] || ALERT_COLORS[level];
+          return html`
+            <div class="color-row">
+              <input
+                type="color"
+                class="color-picker"
+                .value=${color}
+                @input=${(e: Event) => this._customColorChanged(e, level)}
+              />
+              <span class="color-label">${label}</span>
+              <input
+                type="text"
+                class="color-input"
+                .value=${color}
+                @input=${(e: Event) => this._customColorTextChanged(e, level)}
+                placeholder="#000000"
+              />
+            </div>
+          `;
+        })}
+      </div>
+    `;
+  }
+
+  /**
+   * Handles color picker changes.
+   */
+  private _customColorChanged(ev: Event, level: AlertLevel): void {
+    const target = ev.target as HTMLInputElement;
+    const color = target.value;
+    this._updateAlertColor(level, color);
+  }
+
+  /**
+   * Handles color text input changes.
+   */
+  private _customColorTextChanged(ev: Event, level: AlertLevel): void {
+    const target = ev.target as HTMLInputElement;
+    const color = target.value.trim();
+    // Only update if it looks like a valid hex color
+    if (/^#[0-9A-Fa-f]{6}$/.test(color)) {
+      this._updateAlertColor(level, color);
+    }
+  }
+
+  /**
+   * Updates a single alert color in the config.
+   */
+  private _updateAlertColor(level: AlertLevel, color: string): void {
+    const currentColors = this._config?.alert_colors || {};
+    this._updateConfig({
+      alert_colors: {
+        ...currentColors,
+        [level]: color,
+      },
     });
   }
 
