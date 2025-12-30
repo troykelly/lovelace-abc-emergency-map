@@ -7,7 +7,7 @@
 import { LitElement, html, css, TemplateResult, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import type { HomeAssistant } from "custom-card-helpers";
-import type { ABCEmergencyMapCardConfig, TileProviderId } from "./types";
+import type { ABCEmergencyMapCardConfig, TileProviderId, DarkModeSetting } from "./types";
 
 /** Available tile provider options */
 const TILE_PROVIDERS: { value: TileProviderId; label: string }[] = [
@@ -15,6 +15,13 @@ const TILE_PROVIDERS: { value: TileProviderId; label: string }[] = [
   { value: "cartodb", label: "CartoDB" },
   { value: "mapbox", label: "Mapbox (requires API key)" },
   { value: "custom", label: "Custom URL" },
+];
+
+/** Dark mode setting options */
+const DARK_MODE_OPTIONS: { value: DarkModeSetting; label: string }[] = [
+  { value: "auto", label: "Auto (from Home Assistant)" },
+  { value: "light", label: "Always Light" },
+  { value: "dark", label: "Always Dark" },
 ];
 
 @customElement("abc-emergency-map-card-editor")
@@ -197,12 +204,22 @@ export class ABCEmergencyMapCardEditor extends LitElement {
               `
             : nothing}
 
-          ${this._renderToggle(
-            "Dark Mode",
-            "Use dark map tiles",
-            "dark_mode",
-            this._config.dark_mode ?? false
-          )}
+          <div class="form-row">
+            <ha-select
+              label="Theme Mode"
+              .value=${this._normalizeDarkMode(this._config.dark_mode)}
+              @selected=${this._darkModeChanged}
+              @closed=${(e: Event) => e.stopPropagation()}
+            >
+              ${DARK_MODE_OPTIONS.map(
+                (option) => html`
+                  <mwc-list-item .value=${option.value}>
+                    ${option.label}
+                  </mwc-list-item>
+                `
+              )}
+            </ha-select>
+          </div>
 
           ${this._renderToggle(
             "Auto-fit Bounds",
@@ -366,6 +383,27 @@ export class ABCEmergencyMapCardEditor extends LitElement {
     const target = ev.target as HTMLSelectElement;
     const value = target.value as TileProviderId;
     this._updateConfig({ tile_provider: value });
+  }
+
+  /**
+   * Normalizes dark mode value for the dropdown.
+   * Converts legacy boolean values to string format.
+   */
+  private _normalizeDarkMode(value: DarkModeSetting | undefined): string {
+    if (value === undefined) return "auto";
+    if (typeof value === "boolean") {
+      return value ? "dark" : "light";
+    }
+    return value;
+  }
+
+  /**
+   * Handles dark mode dropdown selection.
+   */
+  private _darkModeChanged(ev: CustomEvent): void {
+    const target = ev.target as HTMLSelectElement;
+    const value = target.value as DarkModeSetting;
+    this._updateConfig({ dark_mode: value });
   }
 
   /**

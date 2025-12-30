@@ -43,6 +43,18 @@ export interface TileProviderPreset {
   name: string;
 }
 
+/**
+ * Dark mode setting options.
+ * - "auto": Follows Home Assistant theme setting
+ * - "light": Always use light mode tiles and UI
+ * - "dark": Always use dark mode tiles and UI
+ * - boolean: Legacy support (true = dark, false = light)
+ */
+export type DarkModeSetting = "auto" | "light" | "dark" | boolean;
+
+/** Default dark mode setting */
+export const DEFAULT_DARK_MODE: DarkModeSetting = "auto";
+
 export interface ABCEmergencyMapCardConfig extends LovelaceCardConfig {
   type: "custom:abc-emergency-map-card";
   title?: string;
@@ -50,7 +62,7 @@ export interface ABCEmergencyMapCardConfig extends LovelaceCardConfig {
   entities?: string[];
   default_zoom?: number;
   hours_to_show?: number;
-  dark_mode?: boolean;
+  dark_mode?: DarkModeSetting;
   show_warning_levels?: boolean;
   /** Tile provider identifier or 'custom' for custom URL */
   tile_provider?: TileProviderId;

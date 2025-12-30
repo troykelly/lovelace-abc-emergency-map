@@ -15,6 +15,7 @@ import {
   DEFAULT_SHOW_BADGE,
   DEFAULT_SHOW_NEW_INDICATOR,
   NEW_INCIDENT_THRESHOLD_MS,
+  DEFAULT_DARK_MODE,
 } from "./types";
 import { loadLeaflet } from "./leaflet-loader";
 import { resolveTileProvider } from "./tile-providers";
@@ -48,6 +49,7 @@ export class ABCEmergencyMapCard extends LitElement {
   @state() private _incidentCount: number = 0;
   @state() private _newIncidentCount: number = 0;
   @state() private _highestSeverity: string = "minor";
+  @state() private _currentDarkMode: boolean = false;
 
   /** Leaflet map instance */
   private _map?: LeafletMap;
@@ -79,6 +81,9 @@ export class ABCEmergencyMapCard extends LitElement {
   /** Debounce timer for resize events */
   private _resizeDebounce?: number;
 
+  /** Bound theme change handler for cleanup */
+  private _boundThemeHandler?: () => void;
+
   static styles = styles;
 
   /**
@@ -93,7 +98,7 @@ export class ABCEmergencyMapCard extends LitElement {
       title: "ABC Emergency Map",
       default_zoom: 10,
       hours_to_show: 24,
-      dark_mode: false,
+      dark_mode: DEFAULT_DARK_MODE,
       show_warning_levels: true,
       ...config,
     };
@@ -110,8 +115,10 @@ export class ABCEmergencyMapCard extends LitElement {
     const showBadge = this._config.show_badge ?? DEFAULT_SHOW_BADGE;
     const showNewIndicator = this._config.show_new_indicator ?? DEFAULT_SHOW_NEW_INDICATOR;
 
+    const themeClass = this._currentDarkMode ? "theme-dark" : "theme-light";
+
     return html`
-      <ha-card>
+      <ha-card class="${themeClass}">
         ${this._config.title || (showBadge && this._incidentCount > 0)
           ? html`
             <div class="card-header">
@@ -194,8 +201,22 @@ export class ABCEmergencyMapCard extends LitElement {
     super.updated(changedProperties);
     if (changedProperties.has("hass") && this._map) {
       // Check if theme changed and update tiles if needed
+      this._checkThemeChange();
       this._updateTileLayer();
       this._updateMapData();
+    }
+  }
+
+  /**
+   * Checks if the theme has changed and updates the dark mode state.
+   * This triggers a re-render if the theme changed.
+   */
+  private _checkThemeChange(): void {
+    const newDarkMode = this._isDarkMode();
+    if (newDarkMode !== this._currentDarkMode) {
+      this._currentDarkMode = newDarkMode;
+      // Force tile layer update on theme change
+      this._currentTileConfig = undefined;
     }
   }
 
@@ -205,6 +226,7 @@ export class ABCEmergencyMapCard extends LitElement {
    */
   public disconnectedCallback(): void {
     super.disconnectedCallback();
+    this._removeThemeListener();
     this._cleanup();
   }
 
@@ -215,9 +237,40 @@ export class ABCEmergencyMapCard extends LitElement {
   public connectedCallback(): void {
     super.connectedCallback();
 
+    // Add theme change listener
+    this._addThemeListener();
+
     // If we were previously initialized and got disconnected, re-initialize
     if (this._loadingState === "ready" && !this._map) {
       this._initializeMap();
+    }
+  }
+
+  /**
+   * Adds a listener for Home Assistant theme-change events.
+   * This enables real-time theme switching when HA theme changes.
+   */
+  private _addThemeListener(): void {
+    this._boundThemeHandler = () => {
+      this._checkThemeChange();
+      if (this._map) {
+        this._updateTileLayer();
+      }
+    };
+
+    // Listen for Home Assistant theme changes
+    window.addEventListener("settheme", this._boundThemeHandler);
+    window.addEventListener("theme-changed", this._boundThemeHandler);
+  }
+
+  /**
+   * Removes the theme change listener.
+   */
+  private _removeThemeListener(): void {
+    if (this._boundThemeHandler) {
+      window.removeEventListener("settheme", this._boundThemeHandler);
+      window.removeEventListener("theme-changed", this._boundThemeHandler);
+      this._boundThemeHandler = undefined;
     }
   }
 
@@ -228,6 +281,9 @@ export class ABCEmergencyMapCard extends LitElement {
   private async _initializeMap(): Promise<void> {
     this._loadingState = "loading";
     this._errorMessage = undefined;
+
+    // Set initial dark mode state
+    this._currentDarkMode = this._isDarkMode();
 
     try {
       // Load Leaflet from CDN if needed
@@ -311,21 +367,52 @@ export class ABCEmergencyMapCard extends LitElement {
 
   /**
    * Determines if dark mode is active.
-   * Checks card config first, then falls back to Home Assistant theme setting.
+   * Handles "auto", "light", "dark" settings and legacy boolean values.
+   * In "auto" mode, follows Home Assistant's theme setting.
    */
   private _isDarkMode(): boolean {
-    // Explicit config takes precedence
-    if (this._config?.dark_mode !== undefined) {
-      return this._config.dark_mode;
+    const setting = this._config?.dark_mode ?? DEFAULT_DARK_MODE;
+
+    // Handle legacy boolean values
+    if (typeof setting === "boolean") {
+      return setting;
     }
 
-    // Check Home Assistant theme setting (available in HA 2021.6+)
-    // The themes object may have a darkMode property
+    // Handle string settings
+    switch (setting) {
+      case "dark":
+        return true;
+      case "light":
+        return false;
+      case "auto":
+      default:
+        return this._detectHADarkMode();
+    }
+  }
+
+  /**
+   * Detects dark mode from Home Assistant theme settings.
+   * Checks multiple sources for maximum compatibility.
+   */
+  private _detectHADarkMode(): boolean {
+    // Method 1: Check hass.themes.darkMode (HA 2021.6+)
     const themes = this.hass?.themes as unknown as
       | { darkMode?: boolean }
       | undefined;
     if (themes?.darkMode !== undefined) {
       return themes.darkMode;
+    }
+
+    // Method 2: Check CSS prefers-color-scheme media query
+    // This respects system dark mode when HA is in "auto" mode
+    if (window.matchMedia?.("(prefers-color-scheme: dark)").matches) {
+      return true;
+    }
+
+    // Method 3: Check if HA theme name contains "dark"
+    const themeName = (this.hass?.themes as unknown as { theme?: string })?.theme;
+    if (themeName && themeName.toLowerCase().includes("dark")) {
+      return true;
     }
 
     // Default to light mode

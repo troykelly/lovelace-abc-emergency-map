@@ -12,6 +12,21 @@ export const styles = css`
   ha-card {
     height: 100%;
     overflow: hidden;
+    /* Theme-aware CSS custom properties for consistent styling */
+    --map-shadow-color: rgba(0, 0, 0, 0.15);
+    --map-border-color: var(--divider-color, rgba(0, 0, 0, 0.12));
+  }
+
+  /* Dark theme adjustments */
+  ha-card.theme-dark {
+    --map-shadow-color: rgba(0, 0, 0, 0.4);
+    --map-border-color: var(--divider-color, rgba(255, 255, 255, 0.12));
+  }
+
+  /* Light theme explicit styling (for clarity) */
+  ha-card.theme-light {
+    --map-shadow-color: rgba(0, 0, 0, 0.15);
+    --map-border-color: var(--divider-color, rgba(0, 0, 0, 0.12));
   }
 
   .card-header {
