@@ -14,6 +14,10 @@
 
 **A custom Lovelace card that displays Australian emergency incidents on an interactive map with polygon boundaries, animations, and the Australian Warning System color scheme.**
 
+### Quick Install
+
+[![Add to HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=troykelly&repository=lovelace-abc-emergency-map&category=plugin)
+
 [Getting Started](docs/getting-started.md) | [Configuration](docs/configuration.md) | [Features](docs/features.md) | [Troubleshooting](docs/troubleshooting.md)
 
 ---
@@ -77,9 +81,18 @@ This card uses [Leaflet.js](https://leafletjs.com/) to render those polygons whi
 ### Prerequisites
 
 1. **Home Assistant 2024.1+**
-2. **[ABC Emergency Integration](https://github.com/troykelly/homeassistant-abcemergency)** installed and configured
+2. **ABC Emergency Integration** - Required for incident data
+
+   [![Add ABC Emergency to HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=troykelly&repository=homeassistant-abcemergency&category=integration)
+   [![Add ABC Emergency Integration](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=abcemergency)
 
 ### Installation via HACS (Recommended)
+
+Click the button below to add this card to HACS:
+
+[![Add to HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=troykelly&repository=lovelace-abc-emergency-map&category=plugin)
+
+**Or manually:**
 
 1. Open HACS in Home Assistant
 2. Go to **Frontend** > **Custom repositories**

@@ -7,16 +7,34 @@ Get the ABC Emergency Map Card up and running in under 5 minutes.
 Before installing this card, ensure you have:
 
 1. **Home Assistant 2024.1 or newer**
-2. **[ABC Emergency Integration](https://github.com/troykelly/homeassistant-abcemergency)** installed and configured
+2. **ABC Emergency Integration** - provides the incident data
 3. **HACS** (Home Assistant Community Store) - recommended for easy installation
 
-> **Note:** The ABC Emergency Integration provides the incident data that this card displays. Install it first before proceeding.
+### Install ABC Emergency Integration First
+
+The ABC Emergency Integration provides the incident data that this card displays. Install it first:
+
+[![Add ABC Emergency to HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=troykelly&repository=homeassistant-abcemergency&category=integration)
+
+After adding to HACS, configure the integration:
+
+[![Add ABC Emergency Integration](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=abcemergency)
 
 ---
 
 ## Installation
 
-### Option 1: HACS (Recommended)
+### Option 1: HACS Quick Install (Recommended)
+
+Click the button below to add this card to HACS:
+
+[![Add to HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=troykelly&repository=lovelace-abc-emergency-map&category=plugin)
+
+After clicking, HACS will open. Click **Download** to install the card, then refresh your browser.
+
+### Option 1b: HACS Manual Steps
+
+If the button above doesn't work:
 
 1. Open **HACS** in your Home Assistant sidebar
 2. Click on **Frontend**
