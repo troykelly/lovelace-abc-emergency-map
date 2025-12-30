@@ -116,42 +116,97 @@ export class ABCEmergencyMapCard extends LitElement {
     const showNewIndicator = this._config.show_new_indicator ?? DEFAULT_SHOW_NEW_INDICATOR;
 
     const themeClass = this._currentDarkMode ? "theme-dark" : "theme-light";
+    const cardTitle = this._config.title || "ABC Emergency Map";
 
     return html`
       <ha-card class="${themeClass}">
+        <!-- Skip link for keyboard navigation -->
+        <a
+          href="#map-content-end"
+          class="skip-link"
+          @click=${this._handleSkipLink}
+        >
+          Skip map content
+        </a>
+
         ${this._config.title || (showBadge && this._incidentCount > 0)
           ? html`
             <div class="card-header">
-              <span class="header-title">${this._config.title || ""}</span>
+              <span class="header-title" id="map-title">${this._config.title || ""}</span>
               ${showBadge && this._incidentCount > 0
                 ? this._renderBadge(showNewIndicator)
                 : ""}
             </div>
           `
           : ""}
-        <div class="map-wrapper">
+        <div
+          class="map-wrapper"
+          role="region"
+          aria-label="${cardTitle}"
+          aria-describedby="${this._incidentCount > 0 ? 'incident-status' : ''}"
+        >
           ${this._renderMapContent()}
         </div>
+
+        <!-- Screen reader live region for incident announcements -->
+        <div
+          id="incident-status"
+          class="sr-live-region"
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+        >
+          ${this._incidentCount > 0
+            ? `${this._incidentCount} active emergency incident${this._incidentCount !== 1 ? 's' : ''}${
+                this._newIncidentCount > 0
+                  ? `, ${this._newIncidentCount} new`
+                  : ''
+              }. Highest severity: ${this._highestSeverity}.`
+            : 'No active emergency incidents.'}
+        </div>
+
+        <!-- End marker for skip link -->
+        <div id="map-content-end" tabindex="-1"></div>
       </ha-card>
     `;
   }
 
   /**
-   * Renders the incident count badge.
+   * Renders the incident count badge with ARIA labels.
    */
   private _renderBadge(showNewIndicator: boolean): TemplateResult {
     const badgeColor = ALERT_COLORS[this._highestSeverity] || ALERT_COLORS.minor;
     const newBadge = showNewIndicator && this._newIncidentCount > 0
-      ? html`<span class="badge-new">+${this._newIncidentCount} new</span>`
+      ? html`<span class="badge-new" aria-hidden="true">+${this._newIncidentCount} new</span>`
       : "";
 
+    const ariaLabel = `${this._incidentCount} active incident${this._incidentCount !== 1 ? 's' : ''}${
+      this._newIncidentCount > 0 ? `, ${this._newIncidentCount} new` : ''
+    }, ${this._highestSeverity} severity`;
+
     return html`
-      <div class="incident-badge" style="background: ${badgeColor};">
-        <ha-icon icon="mdi:alert"></ha-icon>
-        <span class="badge-count">${this._incidentCount}</span>
+      <div
+        class="incident-badge"
+        style="background: ${badgeColor};"
+        role="status"
+        aria-label="${ariaLabel}"
+      >
+        <ha-icon icon="mdi:alert" aria-hidden="true"></ha-icon>
+        <span class="badge-count" aria-hidden="true">${this._incidentCount}</span>
         ${newBadge}
       </div>
     `;
+  }
+
+  /**
+   * Handles skip link click to move focus past the map.
+   */
+  private _handleSkipLink(e: Event): void {
+    e.preventDefault();
+    const target = this.shadowRoot?.getElementById('map-content-end');
+    if (target) {
+      target.focus();
+    }
   }
 
   /**
@@ -161,15 +216,15 @@ export class ABCEmergencyMapCard extends LitElement {
     switch (this._loadingState) {
       case "loading":
         return html`
-          <div class="loading-container">
+          <div class="loading-container" role="status" aria-label="Loading map">
             <ha-circular-progress indeterminate></ha-circular-progress>
             <div class="loading-text">Loading map...</div>
           </div>
         `;
       case "error":
         return html`
-          <div class="error-container">
-            <ha-icon icon="mdi:alert-circle"></ha-icon>
+          <div class="error-container" role="alert">
+            <ha-icon icon="mdi:alert-circle" aria-hidden="true"></ha-icon>
             <div class="error-text">
               ${this._errorMessage || "Failed to load map"}
             </div>
@@ -178,7 +233,67 @@ export class ABCEmergencyMapCard extends LitElement {
         `;
       case "ready":
       default:
-        return html`<div class="map-container" id="map"></div>`;
+        return html`
+          <div
+            class="map-container"
+            id="map"
+            role="application"
+            aria-label="Interactive emergency map. Use arrow keys to pan, plus and minus to zoom."
+            tabindex="0"
+            @keydown=${this._handleMapKeydown}
+          ></div>
+        `;
+    }
+  }
+
+  /**
+   * Handles keyboard navigation within the map.
+   * Arrow keys pan, +/- zoom, Home resets view.
+   */
+  private _handleMapKeydown(e: KeyboardEvent): void {
+    if (!this._map) return;
+
+    const panAmount = 100; // pixels
+    const zoomAmount = 1;
+
+    switch (e.key) {
+      case 'ArrowUp':
+        e.preventDefault();
+        this._map.panBy([0, -panAmount]);
+        break;
+      case 'ArrowDown':
+        e.preventDefault();
+        this._map.panBy([0, panAmount]);
+        break;
+      case 'ArrowLeft':
+        e.preventDefault();
+        this._map.panBy([-panAmount, 0]);
+        break;
+      case 'ArrowRight':
+        e.preventDefault();
+        this._map.panBy([panAmount, 0]);
+        break;
+      case '+':
+      case '=':
+        e.preventDefault();
+        this._map.zoomIn(zoomAmount);
+        break;
+      case '-':
+      case '_':
+        e.preventDefault();
+        this._map.zoomOut(zoomAmount);
+        break;
+      case 'Home':
+        e.preventDefault();
+        // Trigger fit to bounds
+        if (this._boundsManager) {
+          const positions: [number, number][] = [];
+          if (this._markerManager) positions.push(...this._markerManager.getMarkerPositions());
+          if (this._zoneManager) positions.push(...this._zoneManager.getZonePositions());
+          if (this._incidentManager) positions.push(...this._incidentManager.getIncidentPositions());
+          this._boundsManager.fitToPositions(positions, true);
+        }
+        break;
     }
   }
 
