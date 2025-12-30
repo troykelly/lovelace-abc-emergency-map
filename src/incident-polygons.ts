@@ -19,6 +19,8 @@ import {
   ALERT_COLORS,
   DEFAULT_ANIMATIONS_ENABLED,
   DEFAULT_ANIMATION_DURATION,
+  DEFAULT_GEOMETRY_TRANSITIONS,
+  DEFAULT_TRANSITION_DURATION,
 } from "./types";
 
 /** Prefix for ABC Emergency geo_location entities */
@@ -223,6 +225,10 @@ export class IncidentPolygonManager {
   private _incidentHashes: Map<string, string> = new Map();
   /** Track known entity IDs to detect new incidents */
   private _knownEntityIds: Set<string> = new Set();
+  /** Track previous geometry for smooth transitions */
+  private _previousGeometries: Map<string, GeoJSONGeometry> = new Map();
+  /** Track active geometry transitions (animation frame IDs) */
+  private _activeTransitions: Map<string, number> = new Map();
 
   constructor(map: LeafletMap, config: ABCEmergencyMapCardConfig) {
     this._map = map;
@@ -249,6 +255,212 @@ export class IncidentPolygonManager {
   private _getAnimationDuration(): string {
     const ms = this._config.animation_duration ?? DEFAULT_ANIMATION_DURATION;
     return `${ms / 1000}s`;
+  }
+
+  /**
+   * Checks if geometry transitions are enabled.
+   */
+  private _geometryTransitionsEnabled(): boolean {
+    return this._config.geometry_transitions ?? DEFAULT_GEOMETRY_TRANSITIONS;
+  }
+
+  /**
+   * Gets the transition duration in milliseconds.
+   */
+  private _getTransitionDurationMs(): number {
+    return this._config.transition_duration ?? DEFAULT_TRANSITION_DURATION;
+  }
+
+  /**
+   * Creates a hash of geometry coordinates for change detection.
+   */
+  private _hashGeometry(geometry: GeoJSONGeometry): string {
+    return JSON.stringify(geometry.coordinates);
+  }
+
+  /**
+   * Checks if geometry has changed.
+   */
+  private _hasGeometryChanged(entityId: string, newGeometry: GeoJSONGeometry): boolean {
+    const oldGeometry = this._previousGeometries.get(entityId);
+    if (!oldGeometry) return false;
+    return this._hashGeometry(oldGeometry) !== this._hashGeometry(newGeometry);
+  }
+
+  /**
+   * Interpolates between two coordinate arrays.
+   * Handles different array lengths by resampling.
+   */
+  private _interpolateCoordinates(
+    from: number[][],
+    to: number[][],
+    t: number
+  ): number[][] {
+    // Normalize to same length by resampling the shorter array
+    const maxLen = Math.max(from.length, to.length);
+    const normalizedFrom = this._resampleCoordinates(from, maxLen);
+    const normalizedTo = this._resampleCoordinates(to, maxLen);
+
+    // Linear interpolation between corresponding points
+    return normalizedFrom.map((fromPoint, i) => {
+      const toPoint = normalizedTo[i];
+      return [
+        fromPoint[0] + (toPoint[0] - fromPoint[0]) * t,
+        fromPoint[1] + (toPoint[1] - fromPoint[1]) * t,
+      ];
+    });
+  }
+
+  /**
+   * Resamples a coordinate array to a target length.
+   * Uses linear interpolation along the path.
+   */
+  private _resampleCoordinates(coords: number[][], targetLength: number): number[][] {
+    if (coords.length === 0) return [];
+    if (coords.length === targetLength) return coords;
+    if (coords.length === 1) {
+      // Repeat single point
+      return Array(targetLength).fill(coords[0]);
+    }
+
+    const result: number[][] = [];
+    const totalLength = coords.length - 1;
+
+    for (let i = 0; i < targetLength; i++) {
+      const t = (i / (targetLength - 1)) * totalLength;
+      const index = Math.floor(t);
+      const frac = t - index;
+
+      if (index >= totalLength) {
+        result.push(coords[totalLength]);
+      } else {
+        const p1 = coords[index];
+        const p2 = coords[index + 1];
+        result.push([
+          p1[0] + (p2[0] - p1[0]) * frac,
+          p1[1] + (p2[1] - p1[1]) * frac,
+        ]);
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Interpolates between two geometry objects.
+   * Supports Polygon and MultiPolygon types.
+   */
+  private _interpolateGeometry(
+    from: GeoJSONGeometry,
+    to: GeoJSONGeometry,
+    t: number
+  ): GeoJSONGeometry {
+    // Only interpolate if types match
+    if (from.type !== to.type) {
+      return t < 0.5 ? from : to;
+    }
+
+    if (from.type === "Polygon" && to.type === "Polygon") {
+      const fromRings = from.coordinates as number[][][];
+      const toRings = to.coordinates as number[][][];
+      const maxRings = Math.max(fromRings.length, toRings.length);
+
+      const interpolatedRings: number[][][] = [];
+      for (let i = 0; i < maxRings; i++) {
+        const fromRing = fromRings[i] || fromRings[0] || [];
+        const toRing = toRings[i] || toRings[0] || [];
+        interpolatedRings.push(this._interpolateCoordinates(fromRing, toRing, t));
+      }
+
+      return {
+        type: "Polygon",
+        coordinates: interpolatedRings,
+      };
+    }
+
+    if (from.type === "MultiPolygon" && to.type === "MultiPolygon") {
+      const fromPolygons = from.coordinates as number[][][][];
+      const toPolygons = to.coordinates as number[][][][];
+      const maxPolygons = Math.max(fromPolygons.length, toPolygons.length);
+
+      const interpolatedPolygons: number[][][][] = [];
+      for (let i = 0; i < maxPolygons; i++) {
+        const fromPoly = fromPolygons[i] || fromPolygons[0] || [[]];
+        const toPoly = toPolygons[i] || toPolygons[0] || [[]];
+        const maxRings = Math.max(fromPoly.length, toPoly.length);
+
+        const interpolatedRings: number[][][] = [];
+        for (let j = 0; j < maxRings; j++) {
+          const fromRing = fromPoly[j] || fromPoly[0] || [];
+          const toRing = toPoly[j] || toPoly[0] || [];
+          interpolatedRings.push(this._interpolateCoordinates(fromRing, toRing, t));
+        }
+        interpolatedPolygons.push(interpolatedRings);
+      }
+
+      return {
+        type: "MultiPolygon",
+        coordinates: interpolatedPolygons,
+      };
+    }
+
+    // For Point or unsupported types, just switch at midpoint
+    return t < 0.5 ? from : to;
+  }
+
+  /**
+   * Animates a geometry transition using requestAnimationFrame.
+   */
+  private _animateGeometryTransition(
+    entityId: string,
+    incident: EmergencyIncident,
+    fromGeometry: GeoJSONGeometry,
+    toGeometry: GeoJSONGeometry,
+    style: PathOptions
+  ): void {
+    // Cancel any existing transition for this entity
+    const existingTransition = this._activeTransitions.get(entityId);
+    if (existingTransition) {
+      cancelAnimationFrame(existingTransition);
+    }
+
+    const duration = this._getTransitionDurationMs();
+    const startTime = performance.now();
+    const layer = this._layers.get(entityId);
+
+    if (!layer) return;
+
+    const animate = (currentTime: number) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+
+      // Easing function (ease-out cubic)
+      const t = 1 - Math.pow(1 - progress, 3);
+
+      // Interpolate geometry
+      const interpolatedGeometry = this._interpolateGeometry(fromGeometry, toGeometry, t);
+      const feature = createFeature(incident, interpolatedGeometry);
+
+      // Update layer with interpolated geometry
+      layer.clearLayers();
+      layer.addData(feature as GeoJSON.Feature);
+      layer.setStyle(style);
+
+      if (progress < 1) {
+        // Continue animation
+        const frameId = requestAnimationFrame(animate);
+        this._activeTransitions.set(entityId, frameId);
+      } else {
+        // Animation complete - clean up
+        this._activeTransitions.delete(entityId);
+        // Store final geometry
+        this._previousGeometries.set(entityId, toGeometry);
+      }
+    };
+
+    // Start animation
+    const frameId = requestAnimationFrame(animate);
+    this._activeTransitions.set(entityId, frameId);
   }
 
   /**
@@ -327,15 +539,44 @@ export class IncidentPolygonManager {
     const feature = createFeature(incident, geometry);
     const style = getPolygonStyle(incident.alert_level);
 
-    if (existingLayer) {
-      // Update existing layer by clearing and re-adding data
-      existingLayer.clearLayers();
-      existingLayer.addData(feature as GeoJSON.Feature);
-      existingLayer.setStyle(style);
+    // Check if geometry has changed for smooth transitions
+    const geometryChanged = this._hasGeometryChanged(entityId, geometry);
+    const previousGeometry = this._previousGeometries.get(entityId);
 
-      // Apply update animation if data changed
-      if (isUpdated) {
-        this._applyAnimation(existingLayer, incident, "updated");
+    if (existingLayer) {
+      // Check if we should animate the geometry transition
+      if (
+        geometryChanged &&
+        previousGeometry &&
+        this._geometryTransitionsEnabled() &&
+        geometry.type !== "Point"
+      ) {
+        // Animate transition from old geometry to new
+        this._animateGeometryTransition(
+          entityId,
+          incident,
+          previousGeometry,
+          geometry,
+          style
+        );
+
+        // Apply update animation alongside geometry transition
+        if (isUpdated) {
+          this._applyAnimation(existingLayer, incident, "updated");
+        }
+      } else {
+        // Update immediately without transition
+        existingLayer.clearLayers();
+        existingLayer.addData(feature as GeoJSON.Feature);
+        existingLayer.setStyle(style);
+
+        // Store current geometry for future transitions
+        this._previousGeometries.set(entityId, geometry);
+
+        // Apply update animation if data changed
+        if (isUpdated) {
+          this._applyAnimation(existingLayer, incident, "updated");
+        }
       }
     } else {
       // Create new GeoJSON layer
@@ -347,6 +588,9 @@ export class IncidentPolygonManager {
       }).addTo(this._map);
 
       this._layers.set(entityId, layer);
+
+      // Store initial geometry for future transitions
+      this._previousGeometries.set(entityId, geometry);
 
       // Apply new incident animation
       if (isNew) {
@@ -561,6 +805,12 @@ export class IncidentPolygonManager {
    * Removes all incident layers from the map.
    */
   public clear(): void {
+    // Cancel any active geometry transitions
+    for (const frameId of this._activeTransitions.values()) {
+      cancelAnimationFrame(frameId);
+    }
+    this._activeTransitions.clear();
+
     for (const layer of this._layers.values()) {
       layer.remove();
     }
@@ -568,6 +818,7 @@ export class IncidentPolygonManager {
     this._incidents.clear();
     this._incidentHashes.clear();
     this._knownEntityIds.clear();
+    this._previousGeometries.clear();
   }
 
   /**

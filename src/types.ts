@@ -84,6 +84,10 @@ export interface ABCEmergencyMapCardConfig extends LovelaceCardConfig {
   animations_enabled?: boolean;
   /** Duration of pulse animation in milliseconds (default: 2000) */
   animation_duration?: number;
+  /** Whether to enable smooth geometry transitions (default: true) */
+  geometry_transitions?: boolean;
+  /** Duration of geometry transition in milliseconds (default: 500) */
+  transition_duration?: number;
 }
 
 export interface EmergencyIncident {
@@ -214,6 +218,12 @@ export const DEFAULT_ANIMATIONS_ENABLED = true;
 
 /** Default animation duration in milliseconds */
 export const DEFAULT_ANIMATION_DURATION = 2000;
+
+/** Default geometry transitions enabled */
+export const DEFAULT_GEOMETRY_TRANSITIONS = true;
+
+/** Default geometry transition duration in milliseconds */
+export const DEFAULT_TRANSITION_DURATION = 500;
 
 /**
  * A single history point with timestamp and coordinates.
