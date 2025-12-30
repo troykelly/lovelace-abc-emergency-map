@@ -420,4 +420,213 @@ export const styles = css`
   .animations-disabled .incident-layer-extreme {
     animation: none !important;
   }
+
+  /* ============================================
+   * RESPONSIVE DESIGN
+   * ============================================ */
+
+  /* Responsive map height based on container size */
+  @media (max-height: 500px) {
+    .map-container,
+    .loading-container,
+    .error-container {
+      height: 250px;
+    }
+  }
+
+  @media (min-height: 501px) and (max-height: 700px) {
+    .map-container,
+    .loading-container,
+    .error-container {
+      height: 350px;
+    }
+  }
+
+  @media (min-height: 701px) {
+    .map-container,
+    .loading-container,
+    .error-container {
+      height: 400px;
+    }
+  }
+
+  /* Mobile-specific adjustments */
+  @media (max-width: 480px) {
+    .card-header {
+      padding: 12px 12px 0;
+      font-size: 1em;
+    }
+
+    .incident-badge {
+      padding: 3px 8px;
+      font-size: 12px;
+    }
+
+    .badge-new {
+      display: none; /* Hide "new" indicator on very small screens */
+    }
+
+    .incident-popup {
+      min-width: 150px;
+      max-width: 250px;
+    }
+
+    .incident-popup-advice {
+      max-height: 80px;
+    }
+  }
+
+  /* Tablet adjustments */
+  @media (min-width: 481px) and (max-width: 768px) {
+    .card-header {
+      padding: 14px 14px 0;
+    }
+  }
+
+  /* ============================================
+   * ACCESSIBILITY - FOCUS INDICATORS
+   * ============================================ */
+
+  /* Global focus visible style for keyboard navigation */
+  *:focus-visible {
+    outline: 2px solid var(--primary-color, #03a9f4);
+    outline-offset: 2px;
+  }
+
+  /* Leaflet control focus styles */
+  .leaflet-control-zoom a:focus-visible {
+    outline: 2px solid var(--primary-color, #03a9f4) !important;
+    outline-offset: -2px;
+  }
+
+  .fit-control-button:focus-visible {
+    outline: 2px solid var(--primary-color, #03a9f4) !important;
+    outline-offset: -2px;
+  }
+
+  /* Popup close button focus */
+  .leaflet-popup-close-button:focus-visible {
+    outline: 2px solid var(--primary-color, #03a9f4) !important;
+    outline-offset: 2px;
+  }
+
+  /* Link focus within popups */
+  .incident-popup-link a:focus-visible {
+    outline: 2px solid var(--primary-color, #03a9f4);
+    outline-offset: 2px;
+  }
+
+  /* ============================================
+   * ACCESSIBILITY - TOUCH TARGETS (WCAG 2.1 AA)
+   * ============================================ */
+
+  /* Ensure minimum 44x44px touch targets for mobile */
+  @media (pointer: coarse) {
+    .leaflet-control-zoom a {
+      width: 44px !important;
+      height: 44px !important;
+      line-height: 44px !important;
+      font-size: 22px !important;
+    }
+
+    .fit-control-button {
+      width: 44px !important;
+      height: 44px !important;
+    }
+
+    .leaflet-popup-close-button {
+      width: 44px !important;
+      height: 44px !important;
+      font-size: 24px !important;
+      padding: 0 !important;
+      right: 0 !important;
+      top: 0 !important;
+    }
+  }
+
+  /* ============================================
+   * ACCESSIBILITY - HIGH CONTRAST MODE
+   * ============================================ */
+
+  @media (prefers-contrast: more) {
+    ha-card {
+      border: 2px solid var(--primary-text-color, #000) !important;
+    }
+
+    .card-header {
+      border-bottom: 2px solid var(--divider-color, #000);
+    }
+
+    .incident-badge {
+      border: 2px solid currentColor;
+    }
+
+    .leaflet-control-zoom a {
+      border: 2px solid var(--primary-text-color, #000) !important;
+    }
+
+    .fit-control-button {
+      border: 2px solid var(--primary-text-color, #000) !important;
+    }
+
+    /* Increase popup contrast */
+    .leaflet-popup-content-wrapper {
+      border: 2px solid var(--primary-text-color, #000);
+    }
+
+    /* Stronger focus indicators */
+    *:focus-visible {
+      outline-width: 3px;
+    }
+  }
+
+  /* ============================================
+   * ACCESSIBILITY - SCREEN READER UTILITIES
+   * ============================================ */
+
+  /* Visually hidden but accessible to screen readers */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  /* Live region for announcements */
+  .sr-live-region {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  /* Skip link for keyboard navigation */
+  .skip-link {
+    position: absolute;
+    top: -40px;
+    left: 0;
+    background: var(--primary-color, #03a9f4);
+    color: white;
+    padding: 8px 16px;
+    z-index: 10000;
+    text-decoration: none;
+    font-weight: 500;
+    border-radius: 0 0 4px 0;
+    transition: top 0.2s ease;
+  }
+
+  .skip-link:focus {
+    top: 0;
+  }
 `;
+
