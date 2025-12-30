@@ -4,6 +4,45 @@
 
 import type { LovelaceCardConfig } from "custom-card-helpers";
 
+/**
+ * Supported tile provider identifiers.
+ * - osm: OpenStreetMap (default, no API key required)
+ * - cartodb: CartoDB/Carto tiles (light/dark variants available)
+ * - mapbox: Mapbox tiles (requires API key)
+ * - custom: User-provided tile URL template
+ */
+export type TileProviderId = "osm" | "cartodb" | "mapbox" | "custom";
+
+/**
+ * Configuration for a tile provider.
+ */
+export interface TileProviderConfig {
+  /** URL template with {s}, {z}, {x}, {y} placeholders */
+  url: string;
+  /** Attribution HTML string */
+  attribution: string;
+  /** Maximum zoom level supported */
+  maxZoom: number;
+  /** Subdomains for load balancing (e.g., ['a', 'b', 'c']) */
+  subdomains?: string | string[];
+  /** Optional API key placeholder in URL */
+  accessToken?: string;
+}
+
+/**
+ * A tile provider preset with optional dark mode variant.
+ */
+export interface TileProviderPreset {
+  /** Light mode tile configuration */
+  light: TileProviderConfig;
+  /** Dark mode tile configuration (falls back to light if not provided) */
+  dark?: TileProviderConfig;
+  /** Whether this provider requires an API key */
+  requiresApiKey: boolean;
+  /** Human-readable name for the provider */
+  name: string;
+}
+
 export interface ABCEmergencyMapCardConfig extends LovelaceCardConfig {
   type: "custom:abc-emergency-map-card";
   title?: string;
@@ -13,6 +52,14 @@ export interface ABCEmergencyMapCardConfig extends LovelaceCardConfig {
   hours_to_show?: number;
   dark_mode?: boolean;
   show_warning_levels?: boolean;
+  /** Tile provider identifier or 'custom' for custom URL */
+  tile_provider?: TileProviderId;
+  /** Custom tile URL template (required when tile_provider is 'custom') */
+  tile_url?: string;
+  /** Custom tile attribution (for custom provider) */
+  tile_attribution?: string;
+  /** API key for providers that require authentication (e.g., Mapbox) */
+  api_key?: string;
 }
 
 export interface EmergencyIncident {
