@@ -58,6 +58,24 @@ show_warning_levels: true
 
 See [CONTEXT.md](CONTEXT.md) for development setup instructions.
 
+## Why Leaflet 1.9.4?
+
+This card uses **Leaflet 1.9.4** rather than the newer 2.0.0-alpha. Here's why:
+
+| Concern | Leaflet 1.9.4 | Leaflet 2.0.0-alpha |
+|---------|---------------|---------------------|
+| **Stability** | Production-ready | Alpha (expect bugs) |
+| **SRI Security** | Available | Not available |
+| **Plugin Ecosystem** | Full compatibility | Most plugins not updated |
+| **API Stability** | Stable | May change before release |
+
+**Leaflet 2.0 stable is targeted for November 2025.** We plan to migrate once:
+- The stable release is published
+- SRI hashes are available for CDN integrity verification
+- Core plugins we may need are updated
+
+If you're interested in tracking this, see the [Leaflet 2.0 discussion](https://github.com/Leaflet/Leaflet/discussions/9719).
+
 ## License
 
 MIT
