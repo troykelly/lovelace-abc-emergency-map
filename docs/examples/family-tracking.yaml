@@ -1,0 +1,38 @@
+# Family Tracking Configuration
+# Track family members with history trails
+# Shows where everyone has been over the last 24 hours
+
+type: custom:abc-emergency-map-card
+title: Family Location
+
+# Family members to track
+entities:
+  - person.parent_1
+  - person.parent_2
+  - person.child_1
+  - person.child_2
+
+# Enable history trails
+show_history: true
+
+# Show 24 hours of movement history
+hours_to_show: 24
+
+# Slightly thicker trails for visibility
+history_line_weight: 4
+
+# Show home zone
+show_zones: true
+
+# Auto-fit to show all family members
+auto_fit: true
+
+# Higher max zoom for family tracking
+fit_max_zoom: 16
+
+# Still show emergency incidents as context
+show_warning_levels: true
+
+# Use CartoDB for cleaner visuals
+tile_provider: cartodb
+dark_mode: auto

@@ -1,0 +1,118 @@
+# Full-Featured Configuration
+# All available options with explanatory comments
+# Customize values to match your needs
+
+type: custom:abc-emergency-map-card
+title: Complete Emergency Map
+
+# ═══════════════════════════════════════════════════════════════
+# CORE SETTINGS
+# ═══════════════════════════════════════════════════════════════
+
+# Entities to display as markers on the map
+# Supports: person.*, device_tracker.*, geo_location.*
+entities:
+  - person.john
+  - person.jane
+  - device_tracker.car
+
+# Initial zoom level (1 = world view, 20 = building level)
+default_zoom: 10
+
+# Hours of history to display for trails
+hours_to_show: 24
+
+# ═══════════════════════════════════════════════════════════════
+# MAP SETTINGS
+# ═══════════════════════════════════════════════════════════════
+
+# Tile provider: osm, cartodb, mapbox, custom
+tile_provider: cartodb
+
+# Theme mode: auto (follows HA), light, dark
+dark_mode: auto
+
+# Auto-zoom to show all entities and incidents
+auto_fit: true
+
+# Padding around content when auto-fitting (pixels)
+fit_padding: 50
+
+# Maximum zoom level when auto-fitting
+fit_max_zoom: 17
+
+# ═══════════════════════════════════════════════════════════════
+# DISPLAY OPTIONS
+# ═══════════════════════════════════════════════════════════════
+
+# Show Home Assistant zones on the map
+show_zones: true
+
+# Show ABC Emergency incident polygons
+show_warning_levels: true
+
+# Show entity movement history trails
+show_history: true
+
+# Show incident count badge
+show_badge: true
+
+# Show "new" indicator for recent incidents
+show_new_indicator: true
+
+# ═══════════════════════════════════════════════════════════════
+# ZONE STYLING
+# ═══════════════════════════════════════════════════════════════
+
+# Zone fill color (CSS color value)
+zone_color: "#4285f4"
+
+# Zone fill opacity (0 = transparent, 1 = solid)
+zone_opacity: 0.2
+
+# Zone border opacity
+zone_border_opacity: 0.5
+
+# ═══════════════════════════════════════════════════════════════
+# HISTORY TRAILS
+# ═══════════════════════════════════════════════════════════════
+
+# Specific entities to show history for (optional)
+# If not specified, shows history for all entities
+history_entities:
+  - person.john
+
+# Trail line weight in pixels
+history_line_weight: 3
+
+# ═══════════════════════════════════════════════════════════════
+# ANIMATIONS
+# ═══════════════════════════════════════════════════════════════
+
+# Enable pulse/glow effects for incidents
+animations_enabled: true
+
+# Animation duration in milliseconds
+animation_duration: 2000
+
+# Enable smooth polygon morphing transitions
+geometry_transitions: true
+
+# Transition duration in milliseconds
+transition_duration: 500
+
+# ═══════════════════════════════════════════════════════════════
+# BADGE SETTINGS
+# ═══════════════════════════════════════════════════════════════
+
+# Badge position: top-left, top-right, bottom-left, bottom-right
+badge_position: top-right
+
+# ═══════════════════════════════════════════════════════════════
+# DYNAMIC ENTITY DISCOVERY
+# ═══════════════════════════════════════════════════════════════
+
+# Sensors that expose entity_ids for dynamic discovery
+# Comment out to show all incidents, or specify filters:
+geo_location_sources:
+  - sensor.abc_emergency_auremer_incidents_total

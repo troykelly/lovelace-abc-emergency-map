@@ -1,0 +1,31 @@
+# Custom Tiles Configuration
+# Using Mapbox for high-quality map tiles
+# Requires a Mapbox API key (free tier available)
+
+type: custom:abc-emergency-map-card
+title: Emergency Map (Mapbox)
+
+# Use Mapbox tiles
+tile_provider: mapbox
+
+# Your Mapbox public access token
+# Get one at: https://www.mapbox.com/
+# Store in secrets.yaml: mapbox_api_key: pk.your_token_here
+api_key: !secret mapbox_api_key
+
+# Auto-detect dark mode from Home Assistant theme
+dark_mode: auto
+
+# Standard display settings
+show_zones: true
+show_warning_levels: true
+show_badge: true
+
+# ═══════════════════════════════════════════════════════════════
+# Alternative: Custom Tile Server
+# ═══════════════════════════════════════════════════════════════
+# Uncomment below to use your own tile server:
+#
+# tile_provider: custom
+# tile_url: "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png"
+# tile_attribution: "Map data &copy; OpenTopoMap contributors"

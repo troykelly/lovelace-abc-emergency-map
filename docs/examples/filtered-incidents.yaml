@@ -1,0 +1,40 @@
+# Filtered Incidents Configuration
+# Shows only specific types of incidents
+# Useful for creating focused dashboard cards
+
+type: custom:abc-emergency-map-card
+title: Bushfires Only
+
+# Filter to show only bushfire incidents
+geo_location_sources:
+  - sensor.abc_emergency_auremer_bushfires
+
+# Standard display settings
+show_zones: true
+show_badge: true
+show_new_indicator: true
+
+# ═══════════════════════════════════════════════════════════════
+# Alternative Filters
+# ═══════════════════════════════════════════════════════════════
+
+# Show only Emergency Warnings (highest priority):
+# geo_location_sources:
+#   - sensor.abc_emergency_auremer_emergency_warnings
+
+# Show Watch and Act level:
+# geo_location_sources:
+#   - sensor.abc_emergency_auremer_watch_and_acts
+
+# Show only floods:
+# geo_location_sources:
+#   - sensor.abc_emergency_auremer_floods
+
+# Show incidents affecting your location:
+# geo_location_sources:
+#   - binary_sensor.abc_emergency_auremer_inside_polygon
+
+# Show multiple high-priority types:
+# geo_location_sources:
+#   - sensor.abc_emergency_auremer_emergency_warnings
+#   - sensor.abc_emergency_auremer_watch_and_acts

@@ -1,0 +1,50 @@
+# Dashboard Panel Configuration
+# Full-screen panel view for dedicated emergency monitoring
+# Best used as a panel (single card) view in a dashboard
+
+type: custom:abc-emergency-map-card
+title: Emergency Monitoring Center
+
+# Track all family members
+entities:
+  - person.john
+  - person.jane
+  - device_tracker.car_john
+  - device_tracker.car_jane
+
+# Show everything
+show_zones: true
+show_warning_levels: true
+show_history: true
+show_badge: true
+show_new_indicator: true
+
+# Longer history for panel view
+hours_to_show: 48
+
+# Enable all animations
+animations_enabled: true
+animation_duration: 2000
+geometry_transitions: true
+transition_duration: 500
+
+# Auto-fit with comfortable padding
+auto_fit: true
+fit_padding: 80
+fit_max_zoom: 15
+
+# High-quality tiles
+tile_provider: cartodb
+dark_mode: auto
+
+# Badge in corner for visibility
+badge_position: top-right
+
+# Zone styling
+zone_color: "#4285f4"
+zone_opacity: 0.15
+zone_border_opacity: 0.4
+
+# All incident sources
+geo_location_sources:
+  - sensor.abc_emergency_auremer_incidents_total

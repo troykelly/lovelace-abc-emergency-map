@@ -1,0 +1,6 @@
+# Minimal Configuration
+# The simplest possible setup - just the card type and title
+# The card will automatically display all ABC Emergency incidents
+
+type: custom:abc-emergency-map-card
+title: Emergency Map
