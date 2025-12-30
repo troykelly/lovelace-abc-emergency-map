@@ -1,6 +1,6 @@
 {
   "name": "lovelace-abc-emergency-map",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Custom Lovelace card for Home Assistant displaying ABC Emergency incident polygons on a Leaflet map",
   "author": "Troy Kelly <troy@aperim.com>",
   "license": "MIT",
