@@ -1,0 +1,384 @@
+/**
+ * Incident Polygon Manager
+ *
+ * Renders ABC Emergency incident polygons from GeoJSON data
+ * with Australian Warning System colors.
+ */
+
+import type { HomeAssistant } from "custom-card-helpers";
+import type { HassEntity } from "home-assistant-js-websocket";
+import type {
+  Map as LeafletMap,
+  GeoJSON as LeafletGeoJSON,
+  Layer,
+  PathOptions,
+  LatLngBounds,
+} from "leaflet";
+import type { ABCEmergencyMapCardConfig, EmergencyIncident } from "./types";
+import { ALERT_COLORS } from "./types";
+
+/** Prefix for ABC Emergency geo_location entities */
+const ABC_EMERGENCY_PREFIX = "geo_location.abc_emergency";
+
+/** Default polygon fill opacity */
+const DEFAULT_FILL_OPACITY = 0.35;
+
+/** Default polygon stroke opacity */
+const DEFAULT_STROKE_OPACITY = 0.8;
+
+/** Default polygon stroke weight */
+const DEFAULT_STROKE_WEIGHT = 2;
+
+/**
+ * GeoJSON geometry types we support
+ */
+type SupportedGeometryType = "Polygon" | "MultiPolygon" | "Point";
+
+/**
+ * GeoJSON geometry object
+ */
+interface GeoJSONGeometry {
+  type: SupportedGeometryType;
+  coordinates: number[] | number[][] | number[][][] | number[][][][];
+}
+
+/**
+ * GeoJSON Feature object
+ */
+interface GeoJSONFeature {
+  type: "Feature";
+  geometry: GeoJSONGeometry;
+  properties: Record<string, unknown>;
+}
+
+/**
+ * Extracts incident data from a Home Assistant entity.
+ */
+function extractIncidentData(
+  entityId: string,
+  entity: HassEntity
+): EmergencyIncident | null {
+  const attrs = entity.attributes;
+
+  // Get coordinates - required for map placement
+  const lat = attrs.latitude;
+  const lon = attrs.longitude;
+
+  if (
+    typeof lat !== "number" ||
+    typeof lon !== "number" ||
+    isNaN(lat) ||
+    isNaN(lon)
+  ) {
+    return null;
+  }
+
+  // Determine alert level with fallback
+  const alertLevel = (attrs.alert_level as string)?.toLowerCase() || "minor";
+  const validLevels = ["extreme", "severe", "moderate", "minor"];
+  const normalizedLevel = validLevels.includes(alertLevel)
+    ? (alertLevel as EmergencyIncident["alert_level"])
+    : "minor";
+
+  return {
+    id: entityId,
+    headline: (attrs.friendly_name as string) || entityId,
+    latitude: lat,
+    longitude: lon,
+    alert_level: normalizedLevel,
+    alert_text: (attrs.alert_text as string) || "",
+    event_type: (attrs.event_type as string) || "unknown",
+    has_polygon: !!attrs.geojson || !!attrs.geometry,
+    geometry_type: attrs.geometry_type as string | undefined,
+  };
+}
+
+/**
+ * Extracts GeoJSON geometry from entity attributes.
+ * Handles both 'geojson' and 'geometry' attribute formats.
+ */
+function extractGeoJSON(entity: HassEntity): GeoJSONGeometry | null {
+  const attrs = entity.attributes;
+
+  // Try 'geojson' attribute first (preferred format)
+  if (attrs.geojson) {
+    const geojson = attrs.geojson as unknown;
+    if (isValidGeometry(geojson)) {
+      return geojson;
+    }
+  }
+
+  // Try 'geometry' attribute as fallback
+  if (attrs.geometry) {
+    const geometry = attrs.geometry as unknown;
+    if (isValidGeometry(geometry)) {
+      return geometry;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Type guard to check if an object is a valid GeoJSON geometry.
+ */
+function isValidGeometry(obj: unknown): obj is GeoJSONGeometry {
+  if (!obj || typeof obj !== "object") return false;
+
+  const geo = obj as Record<string, unknown>;
+
+  if (typeof geo.type !== "string") return false;
+  if (!Array.isArray(geo.coordinates)) return false;
+
+  const validTypes = ["Polygon", "MultiPolygon", "Point"];
+  return validTypes.includes(geo.type);
+}
+
+/**
+ * Gets the style for a polygon based on its alert level.
+ */
+function getPolygonStyle(alertLevel: string): PathOptions {
+  const color = ALERT_COLORS[alertLevel] || ALERT_COLORS.minor;
+
+  return {
+    color: color,
+    weight: DEFAULT_STROKE_WEIGHT,
+    opacity: DEFAULT_STROKE_OPACITY,
+    fillColor: color,
+    fillOpacity: DEFAULT_FILL_OPACITY,
+  };
+}
+
+/**
+ * Creates a GeoJSON Feature from incident data and geometry.
+ */
+function createFeature(
+  incident: EmergencyIncident,
+  geometry: GeoJSONGeometry
+): GeoJSONFeature {
+  return {
+    type: "Feature",
+    geometry: geometry,
+    properties: {
+      id: incident.id,
+      headline: incident.headline,
+      alert_level: incident.alert_level,
+      event_type: incident.event_type,
+      alert_text: incident.alert_text,
+    },
+  };
+}
+
+/**
+ * Gets all ABC Emergency entities from Home Assistant state.
+ */
+function getABCEmergencyEntities(hass: HomeAssistant): string[] {
+  return Object.keys(hass.states).filter((entityId) =>
+    entityId.startsWith(ABC_EMERGENCY_PREFIX)
+  );
+}
+
+/**
+ * Manages incident polygon rendering on a Leaflet map.
+ */
+export class IncidentPolygonManager {
+  private _map: LeafletMap;
+  private _config: ABCEmergencyMapCardConfig;
+  private _layers: Map<string, LeafletGeoJSON> = new Map();
+  private _incidents: Map<string, EmergencyIncident> = new Map();
+
+  constructor(map: LeafletMap, config: ABCEmergencyMapCardConfig) {
+    this._map = map;
+    this._config = config;
+  }
+
+  /**
+   * Updates the configuration.
+   */
+  public updateConfig(config: ABCEmergencyMapCardConfig): void {
+    this._config = config;
+  }
+
+  /**
+   * Updates incident polygons based on current entity states.
+   */
+  public updateIncidents(hass: HomeAssistant): void {
+    // Respect show_warning_levels config - if false, hide all incident polygons
+    if (this._config.show_warning_levels === false) {
+      this.clear();
+      return;
+    }
+
+    const entityIds = getABCEmergencyEntities(hass);
+    const currentIds = new Set(entityIds);
+
+    // Remove layers for entities that no longer exist
+    for (const [entityId, layer] of this._layers) {
+      if (!currentIds.has(entityId)) {
+        layer.remove();
+        this._layers.delete(entityId);
+        this._incidents.delete(entityId);
+      }
+    }
+
+    // Update or create layers for each entity
+    for (const entityId of entityIds) {
+      const entity = hass.states[entityId];
+      if (!entity) continue;
+
+      const incident = extractIncidentData(entityId, entity);
+      if (!incident) continue;
+
+      this._incidents.set(entityId, incident);
+
+      const geometry = extractGeoJSON(entity);
+      if (geometry) {
+        this._updatePolygonLayer(entityId, incident, geometry);
+      } else {
+        // Remove polygon layer if geometry was removed
+        const existingLayer = this._layers.get(entityId);
+        if (existingLayer) {
+          existingLayer.remove();
+          this._layers.delete(entityId);
+        }
+      }
+    }
+  }
+
+  /**
+   * Updates or creates a polygon layer for an incident.
+   */
+  private _updatePolygonLayer(
+    entityId: string,
+    incident: EmergencyIncident,
+    geometry: GeoJSONGeometry
+  ): void {
+    const existingLayer = this._layers.get(entityId);
+    const feature = createFeature(incident, geometry);
+    const style = getPolygonStyle(incident.alert_level);
+
+    if (existingLayer) {
+      // Update existing layer by clearing and re-adding data
+      existingLayer.clearLayers();
+      existingLayer.addData(feature as GeoJSON.Feature);
+      existingLayer.setStyle(style);
+    } else {
+      // Create new GeoJSON layer
+      const layer = L.geoJSON(feature as GeoJSON.Feature, {
+        style: () => style,
+        onEachFeature: (_feat, lyr) => {
+          this._bindPopup(lyr, incident);
+        },
+      }).addTo(this._map);
+
+      this._layers.set(entityId, layer);
+    }
+  }
+
+  /**
+   * Binds a popup to a polygon layer.
+   */
+  private _bindPopup(layer: Layer, incident: EmergencyIncident): void {
+    const alertColor = ALERT_COLORS[incident.alert_level] || ALERT_COLORS.minor;
+    const alertLabel = this._getAlertLabel(incident.alert_level);
+
+    const content = `
+      <div class="incident-popup">
+        <div class="incident-popup-header" style="border-left: 4px solid ${alertColor}; padding-left: 8px;">
+          <strong>${incident.headline}</strong>
+        </div>
+        <div class="incident-popup-body">
+          <div class="incident-alert-badge" style="background: ${alertColor}; color: white; padding: 2px 6px; border-radius: 3px; display: inline-block; font-size: 11px; margin: 4px 0;">
+            ${alertLabel}
+          </div>
+          ${incident.event_type ? `<br><small>Type: ${incident.event_type}</small>` : ""}
+          ${incident.alert_text ? `<br><small>${incident.alert_text}</small>` : ""}
+        </div>
+      </div>
+    `;
+
+    (layer as Layer & { bindPopup: (content: string) => void }).bindPopup(
+      content
+    );
+  }
+
+  /**
+   * Gets a human-readable label for an alert level.
+   */
+  private _getAlertLabel(alertLevel: string): string {
+    const labels: Record<string, string> = {
+      extreme: "Emergency Warning",
+      severe: "Watch and Act",
+      moderate: "Advice",
+      minor: "Information",
+    };
+    return labels[alertLevel] || "Information";
+  }
+
+  /**
+   * Gets all polygon bounds for map fitting.
+   */
+  public getPolygonBounds(): LatLngBounds | null {
+    if (this._layers.size === 0) {
+      return null;
+    }
+
+    let combinedBounds: LatLngBounds | null = null;
+
+    for (const layer of this._layers.values()) {
+      const bounds = layer.getBounds();
+      if (bounds.isValid()) {
+        if (combinedBounds) {
+          combinedBounds.extend(bounds);
+        } else {
+          combinedBounds = bounds;
+        }
+      }
+    }
+
+    return combinedBounds;
+  }
+
+  /**
+   * Gets all incident center positions for bounds calculation.
+   */
+  public getIncidentPositions(): [number, number][] {
+    const positions: [number, number][] = [];
+    for (const incident of this._incidents.values()) {
+      positions.push([incident.latitude, incident.longitude]);
+    }
+    return positions;
+  }
+
+  /**
+   * Gets the number of active incident polygons.
+   */
+  public get polygonCount(): number {
+    return this._layers.size;
+  }
+
+  /**
+   * Gets the total number of incidents (with or without polygons).
+   */
+  public get incidentCount(): number {
+    return this._incidents.size;
+  }
+
+  /**
+   * Removes all incident layers from the map.
+   */
+  public clear(): void {
+    for (const layer of this._layers.values()) {
+      layer.remove();
+    }
+    this._layers.clear();
+    this._incidents.clear();
+  }
+
+  /**
+   * Cleans up resources.
+   */
+  public destroy(): void {
+    this.clear();
+  }
+}

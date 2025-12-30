@@ -16,6 +16,7 @@ import { EntityMarkerManager, getConfiguredEntities } from "./entity-markers";
 import { ZoneManager, getAllZones } from "./zone-renderer";
 import { BoundsManager } from "./bounds-manager";
 import { HistoryTrailManager } from "./history-trails";
+import { IncidentPolygonManager } from "./incident-polygons";
 import type { Map as LeafletMap, TileLayer } from "leaflet";
 
 // Note: The global L declaration is in leaflet-types.d.ts
@@ -56,6 +57,9 @@ export class ABCEmergencyMapCard extends LitElement {
 
   /** History trail manager */
   private _historyManager?: HistoryTrailManager;
+
+  /** Incident polygon manager */
+  private _incidentManager?: IncidentPolygonManager;
 
   /** ResizeObserver for container size changes */
   private _resizeObserver?: ResizeObserver;
@@ -224,6 +228,9 @@ export class ABCEmergencyMapCard extends LitElement {
 
       // Initialize history trail manager (renders below markers)
       this._historyManager = new HistoryTrailManager(this._map, this._config!);
+
+      // Initialize incident polygon manager for ABC Emergency
+      this._incidentManager = new IncidentPolygonManager(this._map, this._config!);
 
       // Set up ResizeObserver for container size changes
       this._setupResizeObserver(mapContainer);
@@ -403,6 +410,12 @@ export class ABCEmergencyMapCard extends LitElement {
       this._historyManager = undefined;
     }
 
+    // Destroy incident manager
+    if (this._incidentManager) {
+      this._incidentManager.destroy();
+      this._incidentManager = undefined;
+    }
+
     // Clear tile config cache
     this._currentTileConfig = undefined;
 
@@ -453,11 +466,17 @@ export class ABCEmergencyMapCard extends LitElement {
       this._historyManager.updateTrails(this.hass, entityIds);
     }
 
+    // Update ABC Emergency incident polygons
+    if (this._incidentManager) {
+      this._incidentManager.updateConfig(this._config);
+      this._incidentManager.updateIncidents(this.hass);
+    }
+
     // Update bounds manager config and fit to all positions
     if (this._boundsManager) {
       this._boundsManager.updateConfig(this._config);
 
-      // Collect all positions from markers, zones, and history trails
+      // Collect all positions from markers, zones, and incidents
       const positions: [number, number][] = [];
 
       if (this._markerManager) {
@@ -468,14 +487,16 @@ export class ABCEmergencyMapCard extends LitElement {
         positions.push(...this._zoneManager.getZonePositions());
       }
 
+      if (this._incidentManager) {
+        positions.push(...this._incidentManager.getIncidentPositions());
+      }
+
       // Note: History trail positions are not included in bounds calculation
       // to avoid sudden map jumps when history loads
 
       // Fit bounds to show all positions
       this._boundsManager.fitToPositions(positions);
     }
-
-    // ABC Emergency GeoJSON polygon rendering will be implemented in Issue #8
   }
 
   /**
