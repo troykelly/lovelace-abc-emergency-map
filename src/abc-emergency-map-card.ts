@@ -9,8 +9,9 @@ import { LitElement, html, PropertyValues, TemplateResult } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import type { HomeAssistant } from "custom-card-helpers";
 import { styles } from "./styles";
-import type { ABCEmergencyMapCardConfig } from "./types";
+import type { ABCEmergencyMapCardConfig, TileProviderConfig } from "./types";
 import { loadLeaflet } from "./leaflet-loader";
+import { resolveTileProvider } from "./tile-providers";
 import type { Map as LeafletMap, TileLayer } from "leaflet";
 
 // Note: The global L declaration is in leaflet-types.d.ts
@@ -20,13 +21,6 @@ const DEFAULT_CENTER: [number, number] = [-25.2744, 133.7751];
 
 /** Default zoom level showing most of Australia */
 const DEFAULT_ZOOM = 4;
-
-/** Tile layer URL for OpenStreetMap */
-const OSM_TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
-
-/** Attribution for OpenStreetMap tiles */
-const OSM_ATTRIBUTION =
-  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
 /** Card loading states */
 type LoadingState = "loading" | "ready" | "error";
@@ -43,6 +37,9 @@ export class ABCEmergencyMapCard extends LitElement {
 
   /** Tile layer instance */
   private _tileLayer?: TileLayer;
+
+  /** Current tile provider configuration for change detection */
+  private _currentTileConfig?: TileProviderConfig;
 
   /** ResizeObserver for container size changes */
   private _resizeObserver?: ResizeObserver;
@@ -131,11 +128,13 @@ export class ABCEmergencyMapCard extends LitElement {
 
   /**
    * Called when properties change.
-   * Updates map data when Home Assistant state changes.
+   * Updates map data and tile layer when Home Assistant state changes.
    */
   protected updated(changedProperties: PropertyValues): void {
     super.updated(changedProperties);
     if (changedProperties.has("hass") && this._map) {
+      // Check if theme changed and update tiles if needed
+      this._updateTileLayer();
       this._updateMapData();
     }
   }
@@ -194,11 +193,8 @@ export class ABCEmergencyMapCard extends LitElement {
         attributionControl: true,
       });
 
-      // Add the tile layer
-      this._tileLayer = L.tileLayer(OSM_TILE_URL, {
-        attribution: OSM_ATTRIBUTION,
-        maxZoom: 19,
-      }).addTo(this._map);
+      // Add the tile layer using the configured provider
+      this._updateTileLayer();
 
       // Set up ResizeObserver for container size changes
       this._setupResizeObserver(mapContainer);
@@ -235,6 +231,66 @@ export class ABCEmergencyMapCard extends LitElement {
 
     // Fall back to center of Australia
     return DEFAULT_CENTER;
+  }
+
+  /**
+   * Determines if dark mode is active.
+   * Checks card config first, then falls back to Home Assistant theme setting.
+   */
+  private _isDarkMode(): boolean {
+    // Explicit config takes precedence
+    if (this._config?.dark_mode !== undefined) {
+      return this._config.dark_mode;
+    }
+
+    // Check Home Assistant theme setting (available in HA 2021.6+)
+    // The themes object may have a darkMode property
+    const themes = this.hass?.themes as unknown as
+      | { darkMode?: boolean }
+      | undefined;
+    if (themes?.darkMode !== undefined) {
+      return themes.darkMode;
+    }
+
+    // Default to light mode
+    return false;
+  }
+
+  /**
+   * Updates the tile layer based on current configuration and theme.
+   * Called on initialization and when config/theme changes.
+   */
+  private _updateTileLayer(): void {
+    if (!this._map || !this._config) {
+      return;
+    }
+
+    const darkMode = this._isDarkMode();
+    const tileConfig = resolveTileProvider(this._config, darkMode);
+
+    // Skip update if tile config hasn't changed
+    if (
+      this._currentTileConfig &&
+      this._currentTileConfig.url === tileConfig.url &&
+      this._currentTileConfig.attribution === tileConfig.attribution
+    ) {
+      return;
+    }
+
+    // Remove existing tile layer
+    if (this._tileLayer) {
+      this._tileLayer.remove();
+    }
+
+    // Create new tile layer with resolved configuration
+    this._tileLayer = L.tileLayer(tileConfig.url, {
+      attribution: tileConfig.attribution,
+      maxZoom: tileConfig.maxZoom,
+      subdomains: tileConfig.subdomains,
+    }).addTo(this._map);
+
+    // Store current config for change detection
+    this._currentTileConfig = tileConfig;
   }
 
   /**
@@ -293,6 +349,9 @@ export class ABCEmergencyMapCard extends LitElement {
       this._tileLayer.remove();
       this._tileLayer = undefined;
     }
+
+    // Clear tile config cache
+    this._currentTileConfig = undefined;
 
     // Remove and cleanup map
     if (this._map) {
