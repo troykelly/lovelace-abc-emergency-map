@@ -60,6 +60,14 @@ export interface ABCEmergencyMapCardConfig extends LovelaceCardConfig {
   tile_attribution?: string;
   /** API key for providers that require authentication (e.g., Mapbox) */
   api_key?: string;
+  /** Whether to show Home Assistant zones on the map (default: true) */
+  show_zones?: boolean;
+  /** Default zone fill color (default: #4285f4) */
+  zone_color?: string;
+  /** Zone fill opacity 0-1 (default: 0.2) */
+  zone_opacity?: number;
+  /** Zone border opacity 0-1 (default: 0.5) */
+  zone_border_opacity?: number;
 }
 
 export interface EmergencyIncident {
@@ -134,3 +142,32 @@ export const ALERT_COLORS: AlertLevelColors = {
   moderate: "#ffcc00", // Advice - Yellow
   minor: "#3366cc", // Information - Blue
 };
+
+/**
+ * Zone data extracted from Home Assistant zone entities.
+ */
+export interface ZoneData {
+  /** Entity ID (e.g., "zone.home") */
+  entityId: string;
+  /** Zone display name */
+  name: string;
+  /** Center latitude */
+  latitude: number;
+  /** Center longitude */
+  longitude: number;
+  /** Zone radius in meters */
+  radius: number;
+  /** Whether this is a passive zone (doesn't trigger automations) */
+  passive: boolean;
+  /** Zone icon (e.g., "mdi:home") */
+  icon?: string;
+}
+
+/** Default zone color (Google Blue) */
+export const DEFAULT_ZONE_COLOR = "#4285f4";
+
+/** Default zone fill opacity */
+export const DEFAULT_ZONE_OPACITY = 0.2;
+
+/** Default zone border opacity */
+export const DEFAULT_ZONE_BORDER_OPACITY = 0.5;

@@ -170,4 +170,23 @@ export const styles = css`
   .leaflet-tooltip-top:before {
     border-top-color: var(--card-background-color, white);
   }
+
+  /* Zone popup styles */
+  .zone-popup {
+    font-size: 13px;
+    line-height: 1.4;
+  }
+
+  .zone-popup strong {
+    color: var(--primary-text-color, #333);
+  }
+
+  .zone-popup small {
+    color: var(--secondary-text-color, #666);
+  }
+
+  .zone-popup em {
+    color: var(--secondary-text-color, #888);
+    font-style: italic;
+  }
 `;

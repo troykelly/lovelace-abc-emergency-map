@@ -13,6 +13,7 @@ import type { ABCEmergencyMapCardConfig, TileProviderConfig } from "./types";
 import { loadLeaflet } from "./leaflet-loader";
 import { resolveTileProvider } from "./tile-providers";
 import { EntityMarkerManager, getConfiguredEntities } from "./entity-markers";
+import { ZoneManager, getAllZones } from "./zone-renderer";
 import type { Map as LeafletMap, TileLayer } from "leaflet";
 
 // Note: The global L declaration is in leaflet-types.d.ts
@@ -44,6 +45,9 @@ export class ABCEmergencyMapCard extends LitElement {
 
   /** Entity marker manager */
   private _markerManager?: EntityMarkerManager;
+
+  /** Zone renderer manager */
+  private _zoneManager?: ZoneManager;
 
   /** ResizeObserver for container size changes */
   private _resizeObserver?: ResizeObserver;
@@ -202,6 +206,9 @@ export class ABCEmergencyMapCard extends LitElement {
 
       // Initialize entity marker manager
       this._markerManager = new EntityMarkerManager(this._map);
+
+      // Initialize zone renderer (zones render below markers)
+      this._zoneManager = new ZoneManager(this._map, this._config!);
 
       // Set up ResizeObserver for container size changes
       this._setupResizeObserver(mapContainer);
@@ -363,6 +370,12 @@ export class ABCEmergencyMapCard extends LitElement {
       this._markerManager = undefined;
     }
 
+    // Destroy zone manager
+    if (this._zoneManager) {
+      this._zoneManager.destroy();
+      this._zoneManager = undefined;
+    }
+
     // Clear tile config cache
     this._currentTileConfig = undefined;
 
@@ -382,11 +395,18 @@ export class ABCEmergencyMapCard extends LitElement {
 
   /**
    * Updates map data when entity states change.
-   * Renders entity markers and incident polygons.
+   * Renders zones, entity markers, and incident polygons.
    */
   private _updateMapData(): void {
     if (!this._map || !this.hass || !this._config) {
       return;
+    }
+
+    // Update zones (rendered first, below markers)
+    if (this._zoneManager) {
+      this._zoneManager.updateConfig(this._config);
+      const zones = getAllZones(this.hass);
+      this._zoneManager.updateZones(zones);
     }
 
     // Update entity markers
