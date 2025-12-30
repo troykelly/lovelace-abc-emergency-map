@@ -1,0 +1,28 @@
+# Zone-Focused Configuration
+# Emphasizes Home Assistant zone boundaries
+# Great for monitoring specific areas
+
+type: custom:abc-emergency-map-card
+title: Zone Monitoring
+
+# Enable zones with custom styling
+show_zones: true
+
+# More visible zone styling
+zone_color: "#ff5722"       # Orange-red for visibility
+zone_opacity: 0.3           # More opaque fill
+zone_border_opacity: 0.8    # Strong border
+
+# Still show incidents for context
+show_warning_levels: true
+
+# Disable auto-fit to keep focus on zones
+auto_fit: false
+default_zoom: 12
+
+# Optional: Add specific entities
+entities:
+  - person.john
+
+# Use light mode for better zone visibility
+dark_mode: light

@@ -1,0 +1,12 @@
+# Minimal Configuration
+# The simplest configuration that will display incidents
+# You MUST specify geo_location_sources to see any incident data
+
+type: custom:abc-emergency-map-card
+title: Emergency Map
+
+# REQUIRED: Specify your ABC Emergency sensor
+# Replace YOUR_INSTANCE with your integration instance name
+# Find this in Developer Tools > States > filter for "sensor.abc_emergency"
+geo_location_sources:
+  - sensor.abc_emergency_YOUR_INSTANCE_incidents_total
