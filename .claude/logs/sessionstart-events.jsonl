@@ -1,0 +1,168 @@
+{
+  "timestamp": "2025-12-30T00:58:14Z",
+  "hook_type": "SessionStart",
+  "hook_name": "session-start",
+  "event": "started",
+  "session_id": null,
+  "git": {
+    "branch": "main",
+    "repo": "lovelace-abc-emergency-map"
+  },
+  "data": {
+    "raw": "{}}"
+  }
+}
+{
+  "timestamp": "2025-12-30T00:58:14Z",
+  "hook_type": "SessionStart",
+  "hook_name": "check-orchestration-sleep",
+  "event": "started",
+  "session_id": null,
+  "git": {
+    "branch": "main",
+    "repo": "lovelace-abc-emergency-map"
+  },
+  "data": {
+    "raw": "{}}"
+  }
+}
+{
+  "timestamp": "2025-12-30T00:58:14Z",
+  "hook_type": "SessionStart",
+  "hook_name": "check-orchestration-sleep",
+  "event": "skipped",
+  "session_id": null,
+  "git": {
+    "branch": "main",
+    "repo": "lovelace-abc-emergency-map"
+  },
+  "data": {
+    "raw": "{\"reason\": \"no state file\"}}"
+  }
+}
+{
+  "timestamp": "2025-12-30T00:58:14Z",
+  "hook_type": "SessionStart",
+  "hook_name": "session-start",
+  "event": "completed",
+  "session_id": null,
+  "git": {
+    "branch": "main",
+    "repo": "lovelace-abc-emergency-map"
+  },
+  "data": {
+    "raw": "{\"errors\": 1, \"warnings\": 1}}"
+  }
+}
+{
+  "timestamp": "2025-12-30T01:01:05Z",
+  "hook_type": "SessionStart",
+  "hook_name": "check-orchestration-sleep",
+  "event": "started",
+  "session_id": "4893-1767056414",
+  "git": {
+    "branch": "main",
+    "repo": "lovelace-abc-emergency-map"
+  },
+  "data": {
+    "raw": "{}}"
+  }
+}
+{
+  "timestamp": "2025-12-30T01:01:05Z",
+  "hook_type": "SessionStart",
+  "hook_name": "session-start",
+  "event": "started",
+  "session_id": "4893-1767056414",
+  "git": {
+    "branch": "main",
+    "repo": "lovelace-abc-emergency-map"
+  },
+  "data": {
+    "raw": "{}}"
+  }
+}
+{
+  "timestamp": "2025-12-30T01:01:05Z",
+  "hook_type": "SessionStart",
+  "hook_name": "check-orchestration-sleep",
+  "event": "skipped",
+  "session_id": "4893-1767056414",
+  "git": {
+    "branch": "main",
+    "repo": "lovelace-abc-emergency-map"
+  },
+  "data": {
+    "raw": "{\"reason\": \"no state file\"}}"
+  }
+}
+{
+  "timestamp": "2025-12-30T01:01:05Z",
+  "hook_type": "SessionStart",
+  "hook_name": "session-start",
+  "event": "completed",
+  "session_id": "4893-1767056414",
+  "git": {
+    "branch": "main",
+    "repo": "lovelace-abc-emergency-map"
+  },
+  "data": {
+    "raw": "{\"errors\": 1, \"warnings\": 1}}"
+  }
+}
+{
+  "timestamp": "2025-12-30T01:07:50Z",
+  "hook_type": "SessionStart",
+  "hook_name": "session-start",
+  "event": "started",
+  "session_id": "4893-1767056414",
+  "git": {
+    "branch": "main",
+    "repo": "lovelace-abc-emergency-map"
+  },
+  "data": {
+    "raw": "{}}"
+  }
+}
+{
+  "timestamp": "2025-12-30T01:07:51Z",
+  "hook_type": "SessionStart",
+  "hook_name": "check-orchestration-sleep",
+  "event": "started",
+  "session_id": "4893-1767056414",
+  "git": {
+    "branch": "main",
+    "repo": "lovelace-abc-emergency-map"
+  },
+  "data": {
+    "raw": "{}}"
+  }
+}
+{
+  "timestamp": "2025-12-30T01:07:51Z",
+  "hook_type": "SessionStart",
+  "hook_name": "check-orchestration-sleep",
+  "event": "skipped",
+  "session_id": "4893-1767056414",
+  "git": {
+    "branch": "main",
+    "repo": "lovelace-abc-emergency-map"
+  },
+  "data": {
+    "raw": "{\"reason\": \"no state file\"}}"
+  }
+}
+{
+  "timestamp": "2025-12-30T01:07:51Z",
+  "hook_type": "SessionStart",
+  "hook_name": "session-start",
+  "event": "completed",
+  "session_id": "4893-1767056414",
+  "git": {
+    "branch": "main",
+    "repo": "lovelace-abc-emergency-map"
+  },
+  "data": {
+    "raw": "{\"status\": \"all_passed\"}}"
+  }
+}

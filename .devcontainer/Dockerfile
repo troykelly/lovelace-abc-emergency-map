@@ -79,6 +79,12 @@ alias build="pnpm run build"\n\
 alias dev="pnpm run dev"\n\
 alias lint="pnpm run lint"\n\
 alias deploy="pnpm run build && cp dist/abc-emergency-map-card.js config/www/"\n\
+\n# >>> github-token-setup >>>\n\
+# Export GITHUB_TOKEN from gh CLI for MCP servers and other tools\n\
+if command -v gh &>/dev/null && gh auth status &>/dev/null; then\n\
+    export GITHUB_TOKEN="$(gh auth token 2>/dev/null)"\n\
+fi\n\
+# <<< github-token-setup <<<\n\
 ' >> /home/vscode/.zshrc
 
 # Add to bashrc as fallback
@@ -89,6 +95,12 @@ alias halog="tail -f /workspaces/lovelace-abc-emergency-map/config/home-assistan
 alias build="pnpm run build"\n\
 alias dev="pnpm run dev"\n\
 alias deploy="pnpm run build && cp dist/abc-emergency-map-card.js config/www/"\n\
+\n# >>> github-token-setup >>>\n\
+# Export GITHUB_TOKEN from gh CLI for MCP servers and other tools\n\
+if command -v gh &>/dev/null && gh auth status &>/dev/null; then\n\
+    export GITHUB_TOKEN="$(gh auth token 2>/dev/null)"\n\
+fi\n\
+# <<< github-token-setup <<<\n\
 ' >> /home/vscode/.bashrc
 
 WORKDIR /workspaces

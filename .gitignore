@@ -296,3 +296,6 @@ $RECYCLE.BIN/
 
 # Windows shortcuts
 *.lnk
+
+#PNPM
+.pnpm-store
