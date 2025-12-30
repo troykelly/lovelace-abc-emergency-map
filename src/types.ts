@@ -106,6 +106,19 @@ export interface ABCEmergencyMapCardConfig extends LovelaceCardConfig {
   show_new_indicator?: boolean;
   /** Badge position (default: "top-right") */
   badge_position?: "top-left" | "top-right" | "bottom-left" | "bottom-right";
+  /**
+   * Dynamic geo_location entity sources.
+   * Configure sensor or binary_sensor entities that expose `entity_ids` or
+   * `containing_entity_ids` attributes listing geo_location entity IDs.
+   * These entities will be dynamically discovered and rendered on the map.
+   *
+   * Example sources:
+   * - sensor.abc_emergency_*_incidents_total (all incidents)
+   * - sensor.abc_emergency_*_bushfires (bushfire incidents)
+   * - sensor.abc_emergency_*_watch_and_acts (watch and act level incidents)
+   * - binary_sensor.abc_emergency_*_inside_polygon (incidents containing location)
+   */
+  geo_location_sources?: string[];
 }
 
 export interface EmergencyIncident {
