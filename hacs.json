@@ -1,0 +1,6 @@
+{
+  "name": "ABC Emergency Map Card",
+  "render_readme": true,
+  "filename": "abc-emergency-map-card.js",
+  "country": ["AU"]
+}

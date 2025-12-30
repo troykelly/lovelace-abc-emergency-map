@@ -1,0 +1,79 @@
+{
+  "name": "ABC Emergency Map Card",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
+  },
+  "postCreateCommand": ".devcontainer/postCreateCommand.sh",
+  "postStartCommand": ".devcontainer/postStartCommand.sh",
+  "forwardPorts": [5000, 8123],
+  "portsAttributes": {
+    "5000": {
+      "label": "Dev Server",
+      "onAutoForward": "notify"
+    },
+    "8123": {
+      "label": "Home Assistant",
+      "onAutoForward": "notify"
+    }
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "lts",
+      "nodeGypDependencies": true
+    },
+    "ghcr.io/anthropics/devcontainer-features/claude-code:1": {},
+    "ghcr.io/devcontainers-extra/features/pnpm:2": {
+      "version": "latest"
+    },
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers-extra/features/apt-packages:1": {
+      "packages": "zsh,fzf"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "github.vscode-pull-request-github",
+        "GitHub.copilot",
+        "eamodio.gitlens",
+        "usernamehw.errorlens",
+        "anthropic.claude-code",
+        "bradlc.vscode-tailwindcss"
+      ],
+      "settings": {
+        "files.eol": "\n",
+        "editor.tabSize": 2,
+        "editor.formatOnPaste": true,
+        "editor.formatOnSave": true,
+        "editor.formatOnType": false,
+        "files.trimTrailingWhitespace": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "[typescript]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode"
+        },
+        "[json][jsonc][yaml]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode"
+        },
+        "terminal.integrated.defaultProfile.linux": "zsh",
+        "terminal.integrated.profiles.linux": {
+          "zsh": {
+            "path": "/usr/bin/zsh"
+          }
+        }
+      }
+    }
+  },
+  "runArgs": [
+    "-e",
+    "GIT_EDITOR=code --wait",
+    "--env-file",
+    "${localWorkspaceFolder}/.env"
+  ],
+  "remoteUser": "vscode",
+  "mounts": [
+    "source=lovelace-abc-emergency-map-vscode-home,target=/home/vscode,type=volume"
+  ]
+}
