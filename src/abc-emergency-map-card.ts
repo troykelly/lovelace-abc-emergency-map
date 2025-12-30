@@ -12,6 +12,7 @@ import { styles } from "./styles";
 import type { ABCEmergencyMapCardConfig, TileProviderConfig } from "./types";
 import { loadLeaflet } from "./leaflet-loader";
 import { resolveTileProvider } from "./tile-providers";
+import { EntityMarkerManager, getConfiguredEntities } from "./entity-markers";
 import type { Map as LeafletMap, TileLayer } from "leaflet";
 
 // Note: The global L declaration is in leaflet-types.d.ts
@@ -40,6 +41,9 @@ export class ABCEmergencyMapCard extends LitElement {
 
   /** Current tile provider configuration for change detection */
   private _currentTileConfig?: TileProviderConfig;
+
+  /** Entity marker manager */
+  private _markerManager?: EntityMarkerManager;
 
   /** ResizeObserver for container size changes */
   private _resizeObserver?: ResizeObserver;
@@ -196,6 +200,9 @@ export class ABCEmergencyMapCard extends LitElement {
       // Add the tile layer using the configured provider
       this._updateTileLayer();
 
+      // Initialize entity marker manager
+      this._markerManager = new EntityMarkerManager(this._map);
+
       // Set up ResizeObserver for container size changes
       this._setupResizeObserver(mapContainer);
 
@@ -350,6 +357,12 @@ export class ABCEmergencyMapCard extends LitElement {
       this._tileLayer = undefined;
     }
 
+    // Destroy marker manager
+    if (this._markerManager) {
+      this._markerManager.destroy();
+      this._markerManager = undefined;
+    }
+
     // Clear tile config cache
     this._currentTileConfig = undefined;
 
@@ -369,16 +382,20 @@ export class ABCEmergencyMapCard extends LitElement {
 
   /**
    * Updates map data when entity states change.
-   * This is where incident polygons will be rendered in future issues.
+   * Renders entity markers and incident polygons.
    */
   private _updateMapData(): void {
-    if (!this._map || !this.hass) {
+    if (!this._map || !this.hass || !this._config) {
       return;
     }
 
-    // Placeholder for entity data loading
-    // This will be implemented in Issue #4 (Entity Marker System)
-    // and Issue #8 (ABC Emergency GeoJSON Polygon Rendering)
+    // Update entity markers
+    if (this._markerManager) {
+      const entities = getConfiguredEntities(this.hass, this._config);
+      this._markerManager.updateMarkers(entities);
+    }
+
+    // ABC Emergency GeoJSON polygon rendering will be implemented in Issue #8
   }
 
   /**

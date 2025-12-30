@@ -116,4 +116,58 @@ export const styles = css`
   .leaflet-control-attribution a {
     color: var(--primary-color, #03a9f4) !important;
   }
+
+  /* Entity marker styles */
+  .entity-marker {
+    background: transparent;
+    border: none;
+  }
+
+  .entity-marker > div {
+    transition: transform 0.2s ease;
+  }
+
+  .entity-marker:hover > div {
+    transform: scale(1.1);
+  }
+
+  .entity-popup {
+    font-size: 13px;
+    line-height: 1.4;
+  }
+
+  .entity-popup strong {
+    color: var(--primary-text-color, #333);
+  }
+
+  .entity-popup small {
+    color: var(--secondary-text-color, #666);
+  }
+
+  /* Leaflet popup styling to match HA theme */
+  .leaflet-popup-content-wrapper {
+    background: var(--card-background-color, white);
+    color: var(--primary-text-color, #333);
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  }
+
+  .leaflet-popup-tip {
+    background: var(--card-background-color, white);
+  }
+
+  /* Leaflet tooltip styling */
+  .leaflet-tooltip {
+    background: var(--card-background-color, white);
+    color: var(--primary-text-color, #333);
+    border: none;
+    border-radius: 4px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    padding: 4px 8px;
+    font-size: 12px;
+  }
+
+  .leaflet-tooltip-top:before {
+    border-top-color: var(--card-background-color, white);
+  }
 `;

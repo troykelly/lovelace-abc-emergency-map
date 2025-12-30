@@ -75,6 +75,55 @@ export interface EmergencyIncident {
   // GeoJSON polygon data will be in extra_state_attributes
 }
 
+/**
+ * Supported entity domains for map markers.
+ */
+export type MarkerEntityDomain = "device_tracker" | "person" | "geo_location";
+
+/**
+ * Entity data extracted for marker display.
+ */
+export interface EntityMarkerData {
+  /** Entity ID (e.g., "person.john") */
+  entityId: string;
+  /** Entity domain */
+  domain: MarkerEntityDomain;
+  /** Display name */
+  name: string;
+  /** Latitude coordinate */
+  latitude: number;
+  /** Longitude coordinate */
+  longitude: number;
+  /** Entity picture URL (if available) */
+  picture?: string;
+  /** Entity state (e.g., "home", "not_home", "travelling") */
+  state: string;
+  /** GPS accuracy in meters (if available) */
+  gpsAccuracy?: number;
+  /** Battery level percentage (if available) */
+  battery?: number;
+  /** Last updated timestamp */
+  lastUpdated?: string;
+}
+
+/**
+ * Default icons for each entity domain.
+ */
+export const DOMAIN_ICONS: Record<MarkerEntityDomain, string> = {
+  device_tracker: "mdi:cellphone",
+  person: "mdi:account",
+  geo_location: "mdi:map-marker",
+};
+
+/**
+ * Marker colors by entity domain.
+ */
+export const DOMAIN_COLORS: Record<MarkerEntityDomain, string> = {
+  device_tracker: "#4CAF50", // Green
+  person: "#2196F3", // Blue
+  geo_location: "#FF9800", // Orange
+};
+
 export type AlertLevelColors = {
   [key: string]: string;
 };
