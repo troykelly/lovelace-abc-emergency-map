@@ -1,11 +1,10 @@
 # Node.js / TypeScript Build
 node_modules/
-dist/
 *.tsbuildinfo
 .rollup.cache/
 
-# Keep dist for releases but ignore during dev
-# !dist/abc-emergency-map-card.js
+# Keep dist tracked for HACS (plugins require JS file in repo)
+# dist/ is NOT ignored - HACS requires the built file to be committed
 
 # Backups
 /user.tgz
