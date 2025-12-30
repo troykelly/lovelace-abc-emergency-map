@@ -75,16 +75,23 @@ export const styles = css`
   .map-wrapper {
     position: relative;
     width: 100%;
+    height: 400px;
   }
 
   .map-container {
-    height: 400px;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 100%;
     width: 100%;
   }
 
-  .leaflet-container {
-    height: 100%;
-    width: 100%;
+  /* Ensure Leaflet container fills the map-container */
+  .map-container .leaflet-container {
+    height: 100% !important;
+    width: 100% !important;
     border-radius: 0 0 var(--ha-card-border-radius, 12px)
       var(--ha-card-border-radius, 12px);
   }
@@ -427,7 +434,7 @@ export const styles = css`
 
   /* Responsive map height based on container size */
   @media (max-height: 500px) {
-    .map-container,
+    .map-wrapper,
     .loading-container,
     .error-container {
       height: 250px;
@@ -435,7 +442,7 @@ export const styles = css`
   }
 
   @media (min-height: 501px) and (max-height: 700px) {
-    .map-container,
+    .map-wrapper,
     .loading-container,
     .error-container {
       height: 350px;
@@ -443,7 +450,7 @@ export const styles = css`
   }
 
   @media (min-height: 701px) {
-    .map-container,
+    .map-wrapper,
     .loading-container,
     .error-container {
       height: 400px;

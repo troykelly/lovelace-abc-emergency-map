@@ -4,6 +4,9 @@
  * Dynamically loads Leaflet.js and CSS from CDN with SRI verification.
  * Uses a singleton pattern to prevent multiple loads when several cards
  * are on the same page.
+ *
+ * IMPORTANT: Because our card uses Shadow DOM, we need to inject Leaflet CSS
+ * into each shadow root, not just the document head.
  */
 
 // Note: The global L declaration is in leaflet-types.d.ts
@@ -27,6 +30,63 @@ const LEAFLET_JS_INTEGRITY =
 /** Loading state tracking */
 let leafletLoadPromise: Promise<typeof L> | null = null;
 let leafletLoaded = false;
+
+/** Cached Leaflet CSS content for shadow DOM injection */
+let leafletCSSContent: string | null = null;
+
+/**
+ * Fetches and caches the Leaflet CSS content.
+ * This is used to inject CSS into shadow roots.
+ *
+ * @returns Promise that resolves with the CSS content
+ */
+async function fetchLeafletCSS(): Promise<string> {
+  if (leafletCSSContent) {
+    return leafletCSSContent;
+  }
+
+  const response = await fetch(LEAFLET_CSS_URL);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch Leaflet CSS: ${response.status}`);
+  }
+
+  leafletCSSContent = await response.text();
+  return leafletCSSContent;
+}
+
+/**
+ * Injects Leaflet CSS into a shadow root.
+ *
+ * Because Shadow DOM creates a style boundary, CSS loaded into document.head
+ * doesn't apply inside shadow roots. This function injects Leaflet's CSS
+ * directly into the shadow root so map styling works correctly.
+ *
+ * @param shadowRoot - The shadow root to inject CSS into
+ * @returns Promise that resolves when CSS is injected
+ */
+export async function injectLeafletCSS(shadowRoot: ShadowRoot): Promise<void> {
+  console.log("ABC Emergency Map: Injecting Leaflet CSS into shadow root");
+
+  // Check if already injected
+  const existingStyle = shadowRoot.querySelector('style[data-leaflet-css]');
+  if (existingStyle) {
+    console.log("ABC Emergency Map: Leaflet CSS already injected");
+    return;
+  }
+
+  // Fetch CSS content if not cached
+  const cssContent = await fetchLeafletCSS();
+  console.log("ABC Emergency Map: Fetched Leaflet CSS, length:", cssContent.length);
+
+  // Create and inject style element
+  const styleElement = document.createElement("style");
+  styleElement.setAttribute("data-leaflet-css", "true");
+  styleElement.textContent = cssContent;
+
+  // Insert at the beginning of shadow root so component styles can override
+  shadowRoot.insertBefore(styleElement, shadowRoot.firstChild);
+  console.log("ABC Emergency Map: Leaflet CSS injected successfully");
+}
 
 /**
  * Injects a CSS stylesheet into the document head.

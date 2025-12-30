@@ -88,7 +88,60 @@ export function extractEntityMarkerData(
 }
 
 /**
- * Gets entities to display based on card configuration.
+ * Extracts entity IDs from geo_location source entities.
+ *
+ * Source entities (sensors or binary_sensors) expose `entity_ids` or
+ * `containing_entity_ids` attributes that list geo_location entity IDs
+ * matching their filter criteria.
+ *
+ * @param hass - Home Assistant instance
+ * @param sources - Array of source entity IDs (sensors/binary_sensors)
+ * @returns Array of geo_location entity IDs discovered from sources
+ */
+export function getEntityIdsFromSources(
+  hass: HomeAssistant,
+  sources: string[]
+): string[] {
+  const entityIds: string[] = [];
+
+  console.log("ABC Emergency Map: Processing geo_location_sources:", sources);
+
+  for (const sourceId of sources) {
+    const source = hass.states[sourceId];
+    if (!source) {
+      console.warn(`ABC Emergency Map: Source entity not found: ${sourceId}`);
+      continue;
+    }
+
+    console.log(`ABC Emergency Map: Source ${sourceId} state:`, source.state, "attrs:", source.attributes);
+
+    const attrs = source.attributes;
+
+    // Check for entity_ids attribute (used by sensors)
+    if (Array.isArray(attrs.entity_ids)) {
+      console.log(`ABC Emergency Map: Found entity_ids in ${sourceId}:`, attrs.entity_ids);
+      entityIds.push(...(attrs.entity_ids as string[]));
+    }
+
+    // Check for containing_entity_ids attribute (used by binary_sensors)
+    if (Array.isArray(attrs.containing_entity_ids)) {
+      console.log(`ABC Emergency Map: Found containing_entity_ids in ${sourceId}:`, attrs.containing_entity_ids);
+      entityIds.push(...(attrs.containing_entity_ids as string[]));
+    }
+
+    if (!attrs.entity_ids && !attrs.containing_entity_ids) {
+      console.warn(`ABC Emergency Map: Source ${sourceId} has no entity_ids or containing_entity_ids attribute`);
+    }
+  }
+
+  console.log("ABC Emergency Map: Total entity IDs from sources:", entityIds);
+
+  // Deduplicate and return
+  return [...new Set(entityIds)];
+}
+
+/**
+ * Gets explicitly configured entities from card config.
  */
 export function getConfiguredEntities(
   hass: HomeAssistant,
@@ -116,6 +169,64 @@ export function getConfiguredEntities(
     const data = extractEntityMarkerData(entityId, entity);
     if (data) {
       entities.push(data);
+    }
+  }
+
+  return entities;
+}
+
+/**
+ * Gets all entities to display, combining:
+ * 1. Explicitly configured entities (entity, entities)
+ * 2. Dynamically discovered entities from geo_location_sources
+ *
+ * This allows cards to be configured with both static entity IDs and
+ * dynamic sources that discover entities based on filter criteria.
+ *
+ * @param hass - Home Assistant instance
+ * @param config - Card configuration
+ * @returns Combined array of EntityMarkerData for all entities
+ */
+export function getAllEntities(
+  hass: HomeAssistant,
+  config: ABCEmergencyMapCardConfig
+): EntityMarkerData[] {
+  const processedIds = new Set<string>();
+  const entities: EntityMarkerData[] = [];
+
+  // 1. Add explicitly configured entities first
+  const staticEntities = getConfiguredEntities(hass, config);
+  for (const entity of staticEntities) {
+    if (!processedIds.has(entity.entityId)) {
+      processedIds.add(entity.entityId);
+      entities.push(entity);
+    }
+  }
+
+  // 2. Add entities discovered from geo_location_sources
+  if (config.geo_location_sources && config.geo_location_sources.length > 0) {
+    const sourceEntityIds = getEntityIdsFromSources(hass, config.geo_location_sources);
+
+    // Debug: List all geo_location entities in hass.states
+    const geoLocationEntities = Object.keys(hass.states).filter(id => id.startsWith('geo_location.'));
+    console.log("ABC Emergency Map: All geo_location entities in hass.states:", geoLocationEntities);
+
+    for (const entityId of sourceEntityIds) {
+      if (processedIds.has(entityId)) continue;
+      processedIds.add(entityId);
+
+      const entity = hass.states[entityId];
+      if (!entity) {
+        console.warn(`ABC Emergency Map: Entity from source not found in hass.states: ${entityId}`);
+        continue;
+      }
+
+      const data = extractEntityMarkerData(entityId, entity);
+      if (data) {
+        entities.push(data);
+      } else {
+        console.warn(`ABC Emergency Map: Entity ${entityId} has no valid coordinates`);
+      }
     }
   }
 

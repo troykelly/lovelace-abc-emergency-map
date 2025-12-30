@@ -109,6 +109,38 @@ export class ABCEmergencyMapCardEditor extends LitElement {
     ha-slider {
       width: 100%;
     }
+
+    .source-help {
+      padding: 12px;
+      background: var(--card-background-color, #f5f5f5);
+      border-radius: 4px;
+      margin-top: 8px;
+    }
+
+    .help-text {
+      font-size: 12px;
+      color: var(--secondary-text-color);
+      margin-bottom: 8px;
+    }
+
+    .help-list {
+      margin: 0;
+      padding-left: 20px;
+      font-size: 12px;
+      color: var(--secondary-text-color);
+    }
+
+    .help-list li {
+      margin-bottom: 4px;
+    }
+
+    .help-list code {
+      background: var(--code-background-color, rgba(0,0,0,0.1));
+      padding: 2px 4px;
+      border-radius: 2px;
+      font-family: monospace;
+      font-size: 11px;
+    }
   `;
 
   public setConfig(config: ABCEmergencyMapCardConfig): void {
@@ -272,6 +304,33 @@ export class ABCEmergencyMapCardEditor extends LitElement {
           )}
         </div>
 
+        <!-- Dynamic Entity Sources -->
+        <div class="section">
+          <div class="section-title">Dynamic Entity Sources (ABC Emergency)</div>
+
+          <div class="form-row">
+            <ha-textfield
+              label="Geo-Location Sources (comma-separated)"
+              .value=${(this._config.geo_location_sources ?? []).join(", ")}
+              @input=${this._geoLocationSourcesChanged}
+              placeholder="sensor.abc_emergency_treehouse_incidents_total"
+              helper="Sensors exposing entity_ids attribute for dynamic geo_location discovery"
+            ></ha-textfield>
+          </div>
+
+          <div class="source-help">
+            <div class="help-text">
+              Configure sensors or binary_sensors that expose lists of geo_location entities:
+            </div>
+            <ul class="help-list">
+              <li><code>sensor.*_incidents_total</code> - All incidents</li>
+              <li><code>sensor.*_bushfires</code> - Bushfire incidents</li>
+              <li><code>sensor.*_watch_and_acts</code> - Watch and Act level</li>
+              <li><code>binary_sensor.*_inside_polygon</code> - Containing incidents</li>
+            </ul>
+          </div>
+        </div>
+
         <!-- Animation Settings -->
         <div class="section">
           <div class="section-title">Animation Settings</div>
@@ -420,6 +479,30 @@ export class ABCEmergencyMapCardEditor extends LitElement {
   private _sliderChanged(ev: Event, configKey: string): void {
     const target = ev.target as HTMLInputElement;
     this._updateConfig({ [configKey]: Number(target.value) });
+  }
+
+  /**
+   * Handles geo_location_sources input changes.
+   * Parses comma-separated entity IDs into an array.
+   */
+  private _geoLocationSourcesChanged(ev: Event): void {
+    const target = ev.target as HTMLInputElement;
+    const value = target.value.trim();
+
+    if (!value) {
+      this._updateConfig({ geo_location_sources: undefined });
+      return;
+    }
+
+    // Parse comma-separated entity IDs, trim whitespace
+    const sources = value
+      .split(",")
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+
+    this._updateConfig({
+      geo_location_sources: sources.length > 0 ? sources : undefined,
+    });
   }
 
   /**

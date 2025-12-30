@@ -8,7 +8,7 @@
 import type {
   Map as LeafletMap,
   Control,
-  LatLngBoundsExpression,
+  LatLngBounds,
   FitBoundsOptions,
 } from "leaflet";
 import type { ABCEmergencyMapCardConfig } from "./types";
@@ -108,7 +108,7 @@ export class BoundsManager {
     }
 
     this._fitControl = createFitControl(() => {
-      this.fitToPositions(this._lastKnownPositions, true);
+      this.fitToPositionsAndBounds(this._lastKnownPositions, this._lastKnownPolygonBounds, true);
     });
 
     this._fitControl.addTo(this._map);
@@ -126,6 +126,8 @@ export class BoundsManager {
 
   /** Stores the last known positions for the fit control button */
   private _lastKnownPositions: [number, number][] = [];
+  /** Stores the last known polygon bounds for the fit control button */
+  private _lastKnownPolygonBounds?: LatLngBounds;
 
   /**
    * Fits the map to show all provided positions.
@@ -137,8 +139,25 @@ export class BoundsManager {
     positions: [number, number][],
     force = false
   ): void {
+    this.fitToPositionsAndBounds(positions, undefined, force);
+  }
+
+  /**
+   * Fits the map to show all provided positions AND polygon bounds.
+   * This properly handles polygons by using their actual bounds, not just centroids.
+   *
+   * @param positions Array of [lat, lng] coordinate pairs (markers, zones)
+   * @param polygonBounds Optional LatLngBounds from polygon layers
+   * @param force If true, fits even if user has interacted with map
+   */
+  public fitToPositionsAndBounds(
+    positions: [number, number][],
+    polygonBounds?: LatLngBounds | null,
+    force = false
+  ): void {
     // Store for the fit control button
     this._lastKnownPositions = positions;
+    this._lastKnownPolygonBounds = polygonBounds || undefined;
 
     // Check if auto-fit is enabled
     const autoFit = this._config.auto_fit ?? DEFAULT_AUTO_FIT;
@@ -153,8 +172,10 @@ export class BoundsManager {
       return;
     }
 
-    // Need at least one position to fit
-    if (positions.length < MIN_POSITIONS_FOR_BOUNDS) {
+    // Need at least one position OR polygon bounds to fit
+    const hasPositions = positions.length >= MIN_POSITIONS_FOR_BOUNDS;
+    const hasPolygonBounds = polygonBounds?.isValid();
+    if (!hasPositions && !hasPolygonBounds) {
       return;
     }
 
@@ -165,39 +186,60 @@ export class BoundsManager {
 
     // Debounce to avoid rapid updates
     this._debounceTimer = window.setTimeout(() => {
-      this._performFit(positions);
+      this._performFitWithPolygons(positions, polygonBounds);
       this._initialFitDone = true;
     }, force ? 0 : AUTO_FIT_DEBOUNCE_MS);
   }
 
   /**
-   * Performs the actual bounds fitting.
+   * Performs the actual bounds fitting, including polygon bounds.
    */
-  private _performFit(positions: [number, number][]): void {
+  private _performFitWithPolygons(
+    positions: [number, number][],
+    polygonBounds?: LatLngBounds | null
+  ): void {
     const padding = normalizePadding(this._config.fit_padding);
     const maxZoom = this._config.fit_max_zoom ?? DEFAULT_FIT_MAX_ZOOM;
 
-    if (positions.length === 1) {
+    // Start with polygon bounds if available, or create empty bounds
+    let combinedBounds: LatLngBounds;
+    if (polygonBounds?.isValid()) {
+      combinedBounds = L.latLngBounds(polygonBounds.getSouthWest(), polygonBounds.getNorthEast());
+    } else {
+      combinedBounds = L.latLngBounds([]);
+    }
+
+    // Extend bounds with all positions
+    for (const [lat, lng] of positions) {
+      combinedBounds.extend([lat, lng]);
+    }
+
+    // Check if we have valid bounds
+    if (!combinedBounds.isValid()) {
+      return;
+    }
+
+    // Check if bounds represent a single point (or very small area)
+    const boundsSize = combinedBounds.getNorthEast().distanceTo(combinedBounds.getSouthWest());
+    const isSinglePoint = boundsSize < 1; // Less than 1 meter
+
+    if (isSinglePoint) {
       // Single position: center and use default zoom
-      const [lat, lng] = positions[0];
+      const center = combinedBounds.getCenter();
       const zoom = Math.min(
         this._config.default_zoom ?? 10,
         maxZoom
       );
-      this._map.setView([lat, lng], zoom, { animate: true });
+      this._map.setView(center, zoom, { animate: true });
     } else {
-      // Multiple positions: fit to bounds
-      const bounds: LatLngBoundsExpression = positions.map(
-        ([lat, lng]) => [lat, lng] as [number, number]
-      );
-
+      // Multiple positions or polygon: fit to bounds
       const options: FitBoundsOptions = {
         padding: padding,
         maxZoom: maxZoom,
         animate: true,
       };
 
-      this._map.fitBounds(bounds, options);
+      this._map.fitBounds(combinedBounds, options);
     }
   }
 

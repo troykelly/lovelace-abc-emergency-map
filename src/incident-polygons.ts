@@ -23,8 +23,6 @@ import {
   DEFAULT_TRANSITION_DURATION,
 } from "./types";
 
-/** Prefix for ABC Emergency geo_location entities */
-const ABC_EMERGENCY_PREFIX = "geo_location.abc_emergency";
 
 /** Default polygon fill opacity */
 const DEFAULT_FILL_OPACITY = 0.35;
@@ -205,12 +203,29 @@ function createFeature(
 }
 
 /**
- * Gets all ABC Emergency entities from Home Assistant state.
+ * Checks if an entity has GeoJSON/polygon data that can be rendered.
  */
-function getABCEmergencyEntities(hass: HomeAssistant): string[] {
-  return Object.keys(hass.states).filter((entityId) =>
-    entityId.startsWith(ABC_EMERGENCY_PREFIX)
-  );
+function hasPolygonData(entity: HassEntity): boolean {
+  const attrs = entity.attributes;
+  return !!(attrs.geojson || attrs.geometry);
+}
+
+/**
+ * Severity order for layering: lower index = rendered first (bottom)
+ * Most severe (extreme) is last = rendered on top
+ */
+const SEVERITY_ORDER: Record<string, number> = {
+  minor: 0,
+  moderate: 1,
+  severe: 2,
+  extreme: 3,
+};
+
+/**
+ * Gets the sort order for a severity level.
+ */
+function getSeverityOrder(alertLevel: string): number {
+  return SEVERITY_ORDER[alertLevel] ?? 0;
 }
 
 /**
@@ -471,19 +486,15 @@ export class IncidentPolygonManager {
   }
 
   /**
-   * Updates incident polygons based on current entity states.
+   * Updates polygons for the specified entity IDs.
+   * Only renders polygons for entities that have GeoJSON/geometry data.
+   * Polygons are layered by severity: least severe (minor) at bottom, most severe (extreme) on top.
    */
-  public updateIncidents(hass: HomeAssistant): void {
-    // Respect show_warning_levels config - if false, hide all incident polygons
-    if (this._config.show_warning_levels === false) {
-      this.clear();
-      return;
-    }
-
-    const entityIds = getABCEmergencyEntities(hass);
+  public updatePolygonsForEntities(hass: HomeAssistant, entityIds: string[]): void {
+    console.log("ABC Emergency Map: updatePolygonsForEntities called with", entityIds.length, "entities");
     const currentIds = new Set(entityIds);
 
-    // Remove layers for entities that no longer exist
+    // Remove layers for entities that are no longer tracked
     for (const [entityId, layer] of this._layers) {
       if (!currentIds.has(entityId)) {
         layer.remove();
@@ -492,15 +503,53 @@ export class IncidentPolygonManager {
       }
     }
 
-    // Update or create layers for each entity
+    // First pass: collect all incidents with polygon data
+    const incidentsToRender: Array<{
+      entityId: string;
+      entity: HassEntity;
+      incident: EmergencyIncident;
+      geometry: GeoJSONGeometry;
+      isNew: boolean;
+      isUpdated: boolean;
+    }> = [];
+
     for (const entityId of entityIds) {
       const entity = hass.states[entityId];
-      if (!entity) continue;
+      if (!entity) {
+        console.log("ABC Emergency Map: Entity not found:", entityId);
+        continue;
+      }
+
+      // Debug: Show entity attributes
+      console.log("ABC Emergency Map: Entity", entityId, "attributes:", {
+        has_polygon: entity.attributes.has_polygon,
+        geometry_type: entity.attributes.geometry_type,
+        hasGeojson: !!entity.attributes.geojson,
+        hasGeometry: !!entity.attributes.geometry,
+      });
+
+      // Only process entities that have polygon/geometry data
+      if (!hasPolygonData(entity)) {
+        console.log("ABC Emergency Map: No polygon data for", entityId);
+        continue;
+      }
 
       const incident = extractIncidentData(entityId, entity);
       if (!incident) continue;
 
-      // Detect new vs updated incidents for animation
+      const geometry = extractGeoJSON(entity);
+      if (!geometry) {
+        console.log("ABC Emergency Map: No geometry extracted for", entityId);
+        // Remove polygon layer if geometry was removed
+        const existingLayer = this._layers.get(entityId);
+        if (existingLayer) {
+          existingLayer.remove();
+          this._layers.delete(entityId);
+        }
+        continue;
+      }
+
+      // Detect new vs updated for animation
       const isNew = !this._knownEntityIds.has(entityId);
       const currentHash = this._hashIncident(incident);
       const previousHash = this._incidentHashes.get(entityId);
@@ -511,18 +560,44 @@ export class IncidentPolygonManager {
       this._incidentHashes.set(entityId, currentHash);
       this._knownEntityIds.add(entityId);
 
-      const geometry = extractGeoJSON(entity);
-      if (geometry) {
-        this._updatePolygonLayer(entityId, incident, geometry, isNew, isUpdated);
-      } else {
-        // Remove polygon layer if geometry was removed
-        const existingLayer = this._layers.get(entityId);
-        if (existingLayer) {
-          existingLayer.remove();
-          this._layers.delete(entityId);
-        }
+      incidentsToRender.push({
+        entityId,
+        entity,
+        incident,
+        geometry,
+        isNew,
+        isUpdated,
+      });
+    }
+
+    // Sort by severity: minor (0) first (bottom), extreme (3) last (top)
+    incidentsToRender.sort((a, b) => {
+      return getSeverityOrder(a.incident.alert_level) - getSeverityOrder(b.incident.alert_level);
+    });
+
+    console.log("ABC Emergency Map: Rendering order (bottom to top):",
+      incidentsToRender.map(i => `${i.entityId} (${i.incident.alert_level})`));
+
+    // Second pass: render in severity order
+    // Remove all existing layers first to ensure correct z-order
+    for (const item of incidentsToRender) {
+      const existingLayer = this._layers.get(item.entityId);
+      if (existingLayer) {
+        existingLayer.remove();
+        this._layers.delete(item.entityId);
       }
     }
+
+    // Re-add in sorted order (first added = bottom, last added = top)
+    for (const item of incidentsToRender) {
+      console.log("ABC Emergency Map: Rendering polygon for", item.entityId,
+        "severity:", item.incident.alert_level, "type:", item.geometry.type);
+      this._updatePolygonLayer(item.entityId, item.incident, item.geometry, item.isNew, item.isUpdated);
+    }
+
+    console.log("ABC Emergency Map: Polygon rendering complete.",
+      incidentsToRender.length, "entities with polygon data,",
+      this._layers.size, "layers rendered");
   }
 
   /**
@@ -580,21 +655,31 @@ export class IncidentPolygonManager {
       }
     } else {
       // Create new GeoJSON layer
-      const layer = L.geoJSON(feature as GeoJSON.Feature, {
-        style: () => style,
-        onEachFeature: (_feat, lyr) => {
-          this._bindPopup(lyr, incident);
-        },
-      }).addTo(this._map);
+      console.log("ABC Emergency Map: Creating GeoJSON layer for", entityId);
+      console.log("ABC Emergency Map: Feature:", JSON.stringify(feature, null, 2));
+      console.log("ABC Emergency Map: Style:", style);
 
-      this._layers.set(entityId, layer);
+      try {
+        const layer = L.geoJSON(feature as GeoJSON.Feature, {
+          style: () => style,
+          onEachFeature: (_feat, lyr) => {
+            this._bindPopup(lyr, incident);
+          },
+        }).addTo(this._map);
 
-      // Store initial geometry for future transitions
-      this._previousGeometries.set(entityId, geometry);
+        console.log("ABC Emergency Map: Layer created, bounds:", layer.getBounds());
 
-      // Apply new incident animation
-      if (isNew) {
-        this._applyAnimation(layer, incident, "new");
+        this._layers.set(entityId, layer);
+
+        // Store initial geometry for future transitions
+        this._previousGeometries.set(entityId, geometry);
+
+        // Apply new incident animation
+        if (isNew) {
+          this._applyAnimation(layer, incident, "new");
+        }
+      } catch (error) {
+        console.error("ABC Emergency Map: Error creating GeoJSON layer:", error);
       }
     }
 

@@ -10,16 +10,10 @@ import { customElement, property, state } from "lit/decorators.js";
 import type { HomeAssistant } from "custom-card-helpers";
 import { styles } from "./styles";
 import type { ABCEmergencyMapCardConfig, TileProviderConfig } from "./types";
-import {
-  ALERT_COLORS,
-  DEFAULT_SHOW_BADGE,
-  DEFAULT_SHOW_NEW_INDICATOR,
-  NEW_INCIDENT_THRESHOLD_MS,
-  DEFAULT_DARK_MODE,
-} from "./types";
-import { loadLeaflet } from "./leaflet-loader";
+import { DEFAULT_DARK_MODE } from "./types";
+import { loadLeaflet, injectLeafletCSS } from "./leaflet-loader";
 import { resolveTileProvider } from "./tile-providers";
-import { EntityMarkerManager, getConfiguredEntities } from "./entity-markers";
+import { EntityMarkerManager, getAllEntities } from "./entity-markers";
 import { ZoneManager, getAllZones } from "./zone-renderer";
 import { BoundsManager } from "./bounds-manager";
 import { HistoryTrailManager } from "./history-trails";
@@ -46,9 +40,6 @@ export class ABCEmergencyMapCard extends LitElement {
   @state() private _config?: ABCEmergencyMapCardConfig;
   @state() private _loadingState: LoadingState = "loading";
   @state() private _errorMessage?: string;
-  @state() private _incidentCount: number = 0;
-  @state() private _newIncidentCount: number = 0;
-  @state() private _highestSeverity: string = "minor";
   @state() private _currentDarkMode: boolean = false;
 
   /** Leaflet map instance */
@@ -112,11 +103,8 @@ export class ABCEmergencyMapCard extends LitElement {
       return html`<ha-card>Invalid configuration</ha-card>`;
     }
 
-    const showBadge = this._config.show_badge ?? DEFAULT_SHOW_BADGE;
-    const showNewIndicator = this._config.show_new_indicator ?? DEFAULT_SHOW_NEW_INDICATOR;
-
     const themeClass = this._currentDarkMode ? "theme-dark" : "theme-light";
-    const cardTitle = this._config.title || "ABC Emergency Map";
+    const cardTitle = this._config.title || "Map";
 
     return html`
       <ha-card class="${themeClass}">
@@ -129,13 +117,10 @@ export class ABCEmergencyMapCard extends LitElement {
           Skip map content
         </a>
 
-        ${this._config.title || (showBadge && this._incidentCount > 0)
+        ${this._config.title
           ? html`
             <div class="card-header">
-              <span class="header-title" id="map-title">${this._config.title || ""}</span>
-              ${showBadge && this._incidentCount > 0
-                ? this._renderBadge(showNewIndicator)
-                : ""}
+              <span class="header-title" id="map-title">${this._config.title}</span>
             </div>
           `
           : ""}
@@ -143,58 +128,13 @@ export class ABCEmergencyMapCard extends LitElement {
           class="map-wrapper"
           role="region"
           aria-label="${cardTitle}"
-          aria-describedby="${this._incidentCount > 0 ? 'incident-status' : ''}"
         >
           ${this._renderMapContent()}
-        </div>
-
-        <!-- Screen reader live region for incident announcements -->
-        <div
-          id="incident-status"
-          class="sr-live-region"
-          role="status"
-          aria-live="polite"
-          aria-atomic="true"
-        >
-          ${this._incidentCount > 0
-            ? `${this._incidentCount} active emergency incident${this._incidentCount !== 1 ? 's' : ''}${
-                this._newIncidentCount > 0
-                  ? `, ${this._newIncidentCount} new`
-                  : ''
-              }. Highest severity: ${this._highestSeverity}.`
-            : 'No active emergency incidents.'}
         </div>
 
         <!-- End marker for skip link -->
         <div id="map-content-end" tabindex="-1"></div>
       </ha-card>
-    `;
-  }
-
-  /**
-   * Renders the incident count badge with ARIA labels.
-   */
-  private _renderBadge(showNewIndicator: boolean): TemplateResult {
-    const badgeColor = ALERT_COLORS[this._highestSeverity] || ALERT_COLORS.minor;
-    const newBadge = showNewIndicator && this._newIncidentCount > 0
-      ? html`<span class="badge-new" aria-hidden="true">+${this._newIncidentCount} new</span>`
-      : "";
-
-    const ariaLabel = `${this._incidentCount} active incident${this._incidentCount !== 1 ? 's' : ''}${
-      this._newIncidentCount > 0 ? `, ${this._newIncidentCount} new` : ''
-    }, ${this._highestSeverity} severity`;
-
-    return html`
-      <div
-        class="incident-badge"
-        style="background: ${badgeColor};"
-        role="status"
-        aria-label="${ariaLabel}"
-      >
-        <ha-icon icon="mdi:alert" aria-hidden="true"></ha-icon>
-        <span class="badge-count" aria-hidden="true">${this._incidentCount}</span>
-        ${newBadge}
-      </div>
     `;
   }
 
@@ -394,6 +334,7 @@ export class ABCEmergencyMapCard extends LitElement {
    * Loads Leaflet dynamically if not already loaded.
    */
   private async _initializeMap(): Promise<void> {
+    console.log("ABC Emergency Map: Initializing map (v2.0 - Shadow DOM CSS fix)");
     this._loadingState = "loading";
     this._errorMessage = undefined;
 
@@ -403,6 +344,15 @@ export class ABCEmergencyMapCard extends LitElement {
     try {
       // Load Leaflet from CDN if needed
       await loadLeaflet();
+
+      // Inject Leaflet CSS into our shadow root
+      // (CSS in document.head doesn't penetrate Shadow DOM)
+      if (this.shadowRoot) {
+        await injectLeafletCSS(this.shadowRoot);
+      }
+
+      // Set state to ready so the map container div is rendered
+      this._loadingState = "ready";
 
       // Wait for next render cycle to ensure map container exists
       await this.updateComplete;
@@ -449,8 +399,6 @@ export class ABCEmergencyMapCard extends LitElement {
       // Trigger initial resize to ensure proper sizing
       this._handleResize();
 
-      this._loadingState = "ready";
-
       // Load initial data if hass is available
       if (this.hass) {
         this._updateMapData();
@@ -473,10 +421,13 @@ export class ABCEmergencyMapCard extends LitElement {
       this.hass?.config?.latitude !== undefined &&
       this.hass?.config?.longitude !== undefined
     ) {
+      console.log("ABC Emergency Map: Using HA home location:",
+        this.hass.config.latitude, this.hass.config.longitude);
       return [this.hass.config.latitude, this.hass.config.longitude];
     }
 
     // Fall back to center of Australia
+    console.log("ABC Emergency Map: No HA location, using default:", DEFAULT_CENTER);
     return DEFAULT_CENTER;
   }
 
@@ -688,40 +639,53 @@ export class ABCEmergencyMapCard extends LitElement {
     if (this._zoneManager) {
       this._zoneManager.updateConfig(this._config);
       const zones = getAllZones(this.hass);
+      console.log("ABC Emergency Map: Found zones:", zones.length, zones.map(z => z.entityId));
       this._zoneManager.updateZones(zones);
     }
 
-    // Update entity markers
-    const entities = this._markerManager
-      ? getConfiguredEntities(this.hass, this._config)
+    // Update entity markers (includes both static entities and geo_location_sources)
+    const allEntities = this._markerManager
+      ? getAllEntities(this.hass, this._config)
       : [];
+    console.log("ABC Emergency Map: Found entities:", allEntities.length, allEntities.map(e => e.entityId));
+
+    // Filter out entities that have polygon data - polygon IS the marker for those
+    const entitiesWithoutPolygons = allEntities.filter(e => {
+      const entity = this.hass.states[e.entityId];
+      if (!entity) return true; // Keep if not found (shouldn't happen)
+      const hasPolygon = !!(entity.attributes.geojson || entity.attributes.geometry);
+      if (hasPolygon) {
+        console.log("ABC Emergency Map: Skipping marker for polygon entity:", e.entityId);
+      }
+      return !hasPolygon;
+    });
 
     if (this._markerManager) {
-      this._markerManager.updateMarkers(entities);
+      this._markerManager.updateMarkers(entitiesWithoutPolygons);
     }
 
     // Update history trails (async, will render when data arrives)
+    // Only track history for non-polygon entities (markers)
     if (this._historyManager) {
       this._historyManager.updateConfig(this._config);
-      const entityIds = entities.map((e) => e.entityId);
+      const entityIds = entitiesWithoutPolygons.map((e) => e.entityId);
       // Fire and forget - trails will update asynchronously
       this._historyManager.updateTrails(this.hass, entityIds);
     }
 
-    // Update ABC Emergency incident polygons
-    if (this._incidentManager) {
+    // Update polygons for entities that have GeoJSON data
+    if (this._incidentManager && this._config.show_warning_levels !== false) {
       this._incidentManager.updateConfig(this._config);
-      this._incidentManager.updateIncidents(this.hass);
-
-      // Update badge data
-      this._updateBadgeData();
+      // Pass all entities - polygon manager will filter to only those with GeoJSON
+      const entityIds = allEntities.map(e => e.entityId);
+      this._incidentManager.updatePolygonsForEntities(this.hass, entityIds);
     }
 
     // Update bounds manager config and fit to all positions
     if (this._boundsManager) {
       this._boundsManager.updateConfig(this._config);
 
-      // Collect all positions from markers, zones, and incidents
+      // Collect all positions from markers and zones
       const positions: [number, number][] = [];
 
       if (this._markerManager) {
@@ -732,64 +696,20 @@ export class ABCEmergencyMapCard extends LitElement {
         positions.push(...this._zoneManager.getZonePositions());
       }
 
-      if (this._incidentManager) {
-        positions.push(...this._incidentManager.getIncidentPositions());
-      }
+      // Get polygon bounds separately - these are actual bounds, not centroids
+      const polygonBounds = this._incidentManager?.getPolygonBounds();
 
       // Note: History trail positions are not included in bounds calculation
       // to avoid sudden map jumps when history loads
 
-      // Fit bounds to show all positions
-      this._boundsManager.fitToPositions(positions);
+      console.log("ABC Emergency Map: Total positions for bounds:", positions.length, positions);
+      console.log("ABC Emergency Map: Polygon bounds:", polygonBounds?.toBBoxString());
+
+      // Fit bounds to show all positions, including polygon bounds
+      this._boundsManager.fitToPositionsAndBounds(positions, polygonBounds);
     }
   }
 
-  /**
-   * Updates badge data based on current incidents.
-   */
-  private _updateBadgeData(): void {
-    if (!this.hass) return;
-
-    // Get all ABC Emergency entities
-    const entityIds = Object.keys(this.hass.states).filter(
-      (id) => id.startsWith("geo_location.abc_emergency")
-    );
-
-    let count = 0;
-    let newCount = 0;
-    let highestSeverity = "minor";
-    const severityOrder = ["minor", "moderate", "severe", "extreme"];
-    const now = Date.now();
-
-    for (const entityId of entityIds) {
-      const entity = this.hass.states[entityId];
-      if (!entity) continue;
-
-      count++;
-
-      // Check if incident is "new" based on last_updated timestamp
-      const lastUpdated = entity.last_updated || entity.last_changed;
-      if (lastUpdated) {
-        const updatedTime = new Date(lastUpdated).getTime();
-        if (now - updatedTime < NEW_INCIDENT_THRESHOLD_MS) {
-          newCount++;
-        }
-      }
-
-      // Track highest severity
-      const alertLevel = (entity.attributes.alert_level as string)?.toLowerCase() || "minor";
-      const currentIndex = severityOrder.indexOf(highestSeverity);
-      const newIndex = severityOrder.indexOf(alertLevel);
-      if (newIndex > currentIndex) {
-        highestSeverity = alertLevel;
-      }
-    }
-
-    // Update state (triggers re-render if changed)
-    this._incidentCount = count;
-    this._newIncidentCount = newCount;
-    this._highestSeverity = highestSeverity;
-  }
 
   /**
    * Returns the card size for Home Assistant layout calculations.
