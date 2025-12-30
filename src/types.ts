@@ -92,7 +92,10 @@ export interface EmergencyIncident {
   event_type: string;
   has_polygon: boolean;
   geometry_type?: string;
-  // GeoJSON polygon data will be in extra_state_attributes
+  /** Last updated timestamp from entity */
+  last_updated?: string;
+  /** External URL for more information */
+  external_link?: string;
 }
 
 /**

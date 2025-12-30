@@ -90,7 +90,36 @@ function extractIncidentData(
     event_type: (attrs.event_type as string) || "unknown",
     has_polygon: !!attrs.geojson || !!attrs.geometry,
     geometry_type: attrs.geometry_type as string | undefined,
+    last_updated: entity.last_updated || entity.last_changed,
+    external_link: (attrs.external_link as string) ||
+      (attrs.link as string) ||
+      (attrs.url as string) ||
+      undefined,
   };
+}
+
+/**
+ * Formats a timestamp as a relative time string (e.g., "2 mins ago").
+ */
+function formatRelativeTime(timestamp: string | undefined): string {
+  if (!timestamp) return "";
+
+  const date = new Date(timestamp);
+  if (isNaN(date.getTime())) return "";
+
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / (1000 * 60));
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffMins < 1) return "Just now";
+  if (diffMins === 1) return "1 min ago";
+  if (diffMins < 60) return `${diffMins} mins ago`;
+  if (diffHours === 1) return "1 hour ago";
+  if (diffHours < 24) return `${diffHours} hours ago`;
+  if (diffDays === 1) return "1 day ago";
+  return `${diffDays} days ago`;
 }
 
 /**
@@ -281,25 +310,75 @@ export class IncidentPolygonManager {
   private _bindPopup(layer: Layer, incident: EmergencyIncident): void {
     const alertColor = ALERT_COLORS[incident.alert_level] || ALERT_COLORS.minor;
     const alertLabel = this._getAlertLabel(incident.alert_level);
+    const relativeTime = formatRelativeTime(incident.last_updated);
+
+    // Build popup content with all available information
+    const typeInfo = incident.event_type && incident.event_type !== "unknown"
+      ? `<div class="incident-popup-row"><span class="incident-popup-label">Type:</span> ${this._escapeHtml(incident.event_type)}</div>`
+      : "";
+
+    const timeInfo = relativeTime
+      ? `<div class="incident-popup-row"><span class="incident-popup-label">Updated:</span> ${relativeTime}</div>`
+      : "";
+
+    const adviceInfo = incident.alert_text
+      ? `<div class="incident-popup-advice">${this._escapeHtml(incident.alert_text)}</div>`
+      : "";
+
+    const linkInfo = incident.external_link
+      ? `<div class="incident-popup-link"><a href="${this._escapeHtml(incident.external_link)}" target="_blank" rel="noopener noreferrer">More Info →</a></div>`
+      : "";
 
     const content = `
       <div class="incident-popup">
         <div class="incident-popup-header" style="border-left: 4px solid ${alertColor}; padding-left: 8px;">
-          <strong>${incident.headline}</strong>
+          <strong>${this._escapeHtml(incident.headline)}</strong>
         </div>
         <div class="incident-popup-body">
-          <div class="incident-alert-badge" style="background: ${alertColor}; color: white; padding: 2px 6px; border-radius: 3px; display: inline-block; font-size: 11px; margin: 4px 0;">
+          <div class="incident-alert-badge" style="background: ${alertColor}; color: ${this._getContrastColor(alertColor)};">
             ${alertLabel}
           </div>
-          ${incident.event_type ? `<br><small>Type: ${incident.event_type}</small>` : ""}
-          ${incident.alert_text ? `<br><small>${incident.alert_text}</small>` : ""}
+          ${typeInfo}
+          ${timeInfo}
+          ${adviceInfo}
+          ${linkInfo}
         </div>
       </div>
     `;
 
-    (layer as Layer & { bindPopup: (content: string) => void }).bindPopup(
-      content
+    (layer as Layer & { bindPopup: (content: string, options?: object) => void }).bindPopup(
+      content,
+      {
+        maxWidth: 300,
+        minWidth: 200,
+        className: "incident-popup-container",
+      }
     );
+  }
+
+  /**
+   * Escapes HTML special characters to prevent XSS.
+   */
+  private _escapeHtml(text: string): string {
+    const div = document.createElement("div");
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  /**
+   * Returns black or white text color based on background luminance.
+   */
+  private _getContrastColor(hexColor: string): string {
+    // Remove # if present
+    const hex = hexColor.replace("#", "");
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+
+    // Calculate relative luminance
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+
+    return luminance > 0.5 ? "#000000" : "#ffffff";
   }
 
   /**
