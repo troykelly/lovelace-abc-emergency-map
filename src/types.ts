@@ -2,7 +2,7 @@
  * Type definitions for ABC Emergency Map Card
  */
 
-import type { HomeAssistant, LovelaceCardConfig } from "custom-card-helpers";
+import type { LovelaceCardConfig } from "custom-card-helpers";
 
 export interface ABCEmergencyMapCardConfig extends LovelaceCardConfig {
   type: "custom:abc-emergency-map-card";

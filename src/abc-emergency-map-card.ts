@@ -10,18 +10,52 @@ import { customElement, property, state } from "lit/decorators.js";
 import type { HomeAssistant } from "custom-card-helpers";
 import { styles } from "./styles";
 import type { ABCEmergencyMapCardConfig } from "./types";
+import { loadLeaflet } from "./leaflet-loader";
+import type { Map as LeafletMap, TileLayer } from "leaflet";
 
-// Leaflet will be loaded dynamically
-declare const L: typeof import("leaflet");
+// Note: The global L declaration is in leaflet-types.d.ts
+
+/** Default center point for Australia */
+const DEFAULT_CENTER: [number, number] = [-25.2744, 133.7751];
+
+/** Default zoom level showing most of Australia */
+const DEFAULT_ZOOM = 4;
+
+/** Tile layer URL for OpenStreetMap */
+const OSM_TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
+
+/** Attribution for OpenStreetMap tiles */
+const OSM_ATTRIBUTION =
+  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+
+/** Card loading states */
+type LoadingState = "loading" | "ready" | "error";
 
 @customElement("abc-emergency-map-card")
 export class ABCEmergencyMapCard extends LitElement {
   @property({ attribute: false }) public hass!: HomeAssistant;
   @state() private _config?: ABCEmergencyMapCardConfig;
-  @state() private _map?: L.Map;
+  @state() private _loadingState: LoadingState = "loading";
+  @state() private _errorMessage?: string;
+
+  /** Leaflet map instance */
+  private _map?: LeafletMap;
+
+  /** Tile layer instance */
+  private _tileLayer?: TileLayer;
+
+  /** ResizeObserver for container size changes */
+  private _resizeObserver?: ResizeObserver;
+
+  /** Debounce timer for resize events */
+  private _resizeDebounce?: number;
 
   static styles = styles;
 
+  /**
+   * Sets the card configuration.
+   * Called by Home Assistant when the card is configured.
+   */
   public setConfig(config: ABCEmergencyMapCardConfig): void {
     if (!config) {
       throw new Error("Invalid configuration");
@@ -36,6 +70,9 @@ export class ABCEmergencyMapCard extends LitElement {
     };
   }
 
+  /**
+   * Renders the card HTML.
+   */
   protected render(): TemplateResult {
     if (!this._config) {
       return html`<ha-card>Invalid configuration</ha-card>`;
@@ -46,16 +83,56 @@ export class ABCEmergencyMapCard extends LitElement {
         ${this._config.title
           ? html`<div class="card-header">${this._config.title}</div>`
           : ""}
-        <div class="map-container" id="map"></div>
+        <div class="map-wrapper">
+          ${this._renderMapContent()}
+        </div>
       </ha-card>
     `;
   }
 
-  protected firstUpdated(_changedProperties: PropertyValues): void {
-    super.firstUpdated(_changedProperties);
-    this._initializeMap();
+  /**
+   * Renders the map content based on loading state.
+   */
+  private _renderMapContent(): TemplateResult {
+    switch (this._loadingState) {
+      case "loading":
+        return html`
+          <div class="loading-container">
+            <ha-circular-progress indeterminate></ha-circular-progress>
+            <div class="loading-text">Loading map...</div>
+          </div>
+        `;
+      case "error":
+        return html`
+          <div class="error-container">
+            <ha-icon icon="mdi:alert-circle"></ha-icon>
+            <div class="error-text">
+              ${this._errorMessage || "Failed to load map"}
+            </div>
+            <mwc-button @click=${this._retryLoad}>Retry</mwc-button>
+          </div>
+        `;
+      case "ready":
+      default:
+        return html`<div class="map-container" id="map"></div>`;
+    }
   }
 
+  /**
+   * Called after the first render.
+   * Initializes the Leaflet map.
+   */
+  protected async firstUpdated(
+    _changedProperties: PropertyValues
+  ): Promise<void> {
+    super.firstUpdated(_changedProperties);
+    await this._initializeMap();
+  }
+
+  /**
+   * Called when properties change.
+   * Updates map data when Home Assistant state changes.
+   */
   protected updated(changedProperties: PropertyValues): void {
     super.updated(changedProperties);
     if (changedProperties.has("hass") && this._map) {
@@ -63,26 +140,205 @@ export class ABCEmergencyMapCard extends LitElement {
     }
   }
 
+  /**
+   * Called when the element is removed from the DOM.
+   * Cleans up map resources.
+   */
+  public disconnectedCallback(): void {
+    super.disconnectedCallback();
+    this._cleanup();
+  }
+
+  /**
+   * Called when the element is re-added to the DOM.
+   * Re-initializes the map if needed.
+   */
+  public connectedCallback(): void {
+    super.connectedCallback();
+
+    // If we were previously initialized and got disconnected, re-initialize
+    if (this._loadingState === "ready" && !this._map) {
+      this._initializeMap();
+    }
+  }
+
+  /**
+   * Initializes the Leaflet map.
+   * Loads Leaflet dynamically if not already loaded.
+   */
   private async _initializeMap(): Promise<void> {
-    // TODO: Initialize Leaflet map
-    // TODO: Load geo_location entities
-    // TODO: Render polygons with alert-level colors
-    console.log("ABC Emergency Map Card initialized");
+    this._loadingState = "loading";
+    this._errorMessage = undefined;
+
+    try {
+      // Load Leaflet from CDN if needed
+      await loadLeaflet();
+
+      // Wait for next render cycle to ensure map container exists
+      await this.updateComplete;
+
+      // Get the map container from shadow DOM
+      const mapContainer = this.shadowRoot?.getElementById("map");
+      if (!mapContainer) {
+        throw new Error("Map container not found in shadow DOM");
+      }
+
+      // Initialize the Leaflet map
+      const center = this._getInitialCenter();
+      const zoom = this._config?.default_zoom ?? DEFAULT_ZOOM;
+
+      this._map = L.map(mapContainer, {
+        center: center,
+        zoom: zoom,
+        zoomControl: true,
+        attributionControl: true,
+      });
+
+      // Add the tile layer
+      this._tileLayer = L.tileLayer(OSM_TILE_URL, {
+        attribution: OSM_ATTRIBUTION,
+        maxZoom: 19,
+      }).addTo(this._map);
+
+      // Set up ResizeObserver for container size changes
+      this._setupResizeObserver(mapContainer);
+
+      // Trigger initial resize to ensure proper sizing
+      this._handleResize();
+
+      this._loadingState = "ready";
+
+      // Load initial data if hass is available
+      if (this.hass) {
+        this._updateMapData();
+      }
+    } catch (error) {
+      console.error("ABC Emergency Map: Failed to initialize map:", error);
+      this._loadingState = "error";
+      this._errorMessage =
+        error instanceof Error ? error.message : "Unknown error occurred";
+    }
   }
 
+  /**
+   * Gets the initial center point for the map.
+   * Uses Home Assistant's location if available, otherwise defaults to Australia center.
+   */
+  private _getInitialCenter(): [number, number] {
+    // Try to use Home Assistant's configured location
+    if (
+      this.hass?.config?.latitude !== undefined &&
+      this.hass?.config?.longitude !== undefined
+    ) {
+      return [this.hass.config.latitude, this.hass.config.longitude];
+    }
+
+    // Fall back to center of Australia
+    return DEFAULT_CENTER;
+  }
+
+  /**
+   * Sets up a ResizeObserver to handle container size changes.
+   * This ensures the map properly fills its container even after resizes.
+   */
+  private _setupResizeObserver(container: HTMLElement): void {
+    // Clean up any existing observer
+    if (this._resizeObserver) {
+      this._resizeObserver.disconnect();
+    }
+
+    this._resizeObserver = new ResizeObserver(() => {
+      // Debounce resize events
+      if (this._resizeDebounce) {
+        window.clearTimeout(this._resizeDebounce);
+      }
+      this._resizeDebounce = window.setTimeout(() => {
+        this._handleResize();
+      }, 100);
+    });
+
+    this._resizeObserver.observe(container);
+  }
+
+  /**
+   * Handles container resize events.
+   * Invalidates the map size so Leaflet recalculates dimensions.
+   */
+  private _handleResize(): void {
+    if (this._map) {
+      // invalidateSize tells Leaflet to recalculate its size
+      this._map.invalidateSize({ animate: false });
+    }
+  }
+
+  /**
+   * Cleans up map resources.
+   * Called on disconnectedCallback to prevent memory leaks.
+   */
+  private _cleanup(): void {
+    // Clear any pending resize debounce
+    if (this._resizeDebounce) {
+      window.clearTimeout(this._resizeDebounce);
+      this._resizeDebounce = undefined;
+    }
+
+    // Disconnect ResizeObserver
+    if (this._resizeObserver) {
+      this._resizeObserver.disconnect();
+      this._resizeObserver = undefined;
+    }
+
+    // Remove tile layer
+    if (this._tileLayer) {
+      this._tileLayer.remove();
+      this._tileLayer = undefined;
+    }
+
+    // Remove and cleanup map
+    if (this._map) {
+      this._map.remove();
+      this._map = undefined;
+    }
+  }
+
+  /**
+   * Retries loading the map after an error.
+   */
+  private async _retryLoad(): Promise<void> {
+    await this._initializeMap();
+  }
+
+  /**
+   * Updates map data when entity states change.
+   * This is where incident polygons will be rendered in future issues.
+   */
   private _updateMapData(): void {
-    // TODO: Update map markers and polygons when entity states change
+    if (!this._map || !this.hass) {
+      return;
+    }
+
+    // Placeholder for entity data loading
+    // This will be implemented in Issue #4 (Entity Marker System)
+    // and Issue #8 (ABC Emergency GeoJSON Polygon Rendering)
   }
 
+  /**
+   * Returns the card size for Home Assistant layout calculations.
+   */
   public getCardSize(): number {
     return 5;
   }
 
+  /**
+   * Returns the configuration element for the card editor.
+   */
   static getConfigElement(): HTMLElement {
-    // TODO: Return card editor element
     return document.createElement("abc-emergency-map-card-editor");
   }
 
+  /**
+   * Returns stub configuration for new card instances.
+   */
   static getStubConfig(): ABCEmergencyMapCardConfig {
     return {
       type: "custom:abc-emergency-map-card",
@@ -91,16 +347,17 @@ export class ABCEmergencyMapCard extends LitElement {
   }
 }
 
-// Register the card
+// Register the card with the custom elements registry
 declare global {
   interface HTMLElementTagNameMap {
     "abc-emergency-map-card": ABCEmergencyMapCard;
   }
 }
 
-// Card registration for HACS
-(window as any).customCards = (window as any).customCards || [];
-(window as any).customCards.push({
+// Card registration for HACS and Home Assistant
+(window as unknown as Record<string, unknown[]>).customCards =
+  (window as unknown as Record<string, unknown[]>).customCards || [];
+(window as unknown as Record<string, unknown[]>).customCards.push({
   type: "abc-emergency-map-card",
   name: "ABC Emergency Map Card",
   description:
