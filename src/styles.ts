@@ -207,6 +207,36 @@ export const styles = css`
     line-height: 1.4;
   }
 
+  .entity-popup-title {
+    margin: 0 0 4px 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--primary-text-color, #333);
+  }
+
+  .entity-popup-id {
+    display: block;
+    margin-bottom: 8px;
+    color: var(--secondary-text-color, #666);
+  }
+
+  .entity-popup-details {
+    margin: 0;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 4px 8px;
+  }
+
+  .entity-popup-details dt {
+    font-weight: 500;
+    color: var(--secondary-text-color, #666);
+  }
+
+  .entity-popup-details dd {
+    margin: 0;
+    color: var(--primary-text-color, #333);
+  }
+
   .entity-popup strong {
     color: var(--primary-text-color, #333);
   }
@@ -302,7 +332,9 @@ export const styles = css`
     border-bottom: 1px solid var(--divider-color, #e0e0e0);
   }
 
-  .incident-popup-header strong {
+  .incident-popup-header strong,
+  .incident-popup-title {
+    margin: 0;
     color: var(--primary-text-color, #333);
     font-size: 14px;
     font-weight: 600;

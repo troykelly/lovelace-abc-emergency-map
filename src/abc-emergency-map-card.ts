@@ -114,6 +114,15 @@ export class ABCEmergencyMapCard extends LitElement {
   /** Bound zoom event handler for cleanup */
   private _boundZoomHandler?: () => void;
 
+  /** Live region element for screen reader announcements */
+  private _liveRegion?: HTMLElement;
+
+  /** Previous marker count for change detection */
+  private _previousMarkerCount = 0;
+
+  /** Previous marker visibility state for change detection */
+  private _previousMarkersVisible = true;
+
   static styles = styles;
 
   /**
@@ -188,6 +197,15 @@ export class ABCEmergencyMapCard extends LitElement {
         >
           ${this._renderMapContent()}
         </div>
+
+        <!-- Live region for screen reader announcements -->
+        <div
+          id="accessibility-live-region"
+          class="sr-live-region"
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+        ></div>
 
         <!-- End marker for skip link -->
         <div id="map-content-end" tabindex="-1"></div>
@@ -715,6 +733,35 @@ export class ABCEmergencyMapCard extends LitElement {
     const shouldShow = currentZoom >= minZoom;
 
     this._markerManager.setZoomVisibility(shouldShow);
+
+    // Announce visibility change to screen readers
+    if (shouldShow !== this._previousMarkersVisible) {
+      this._previousMarkersVisible = shouldShow;
+      const message = shouldShow
+        ? "Entity markers now visible"
+        : "Entity markers hidden at current zoom level";
+      this._announceChange(message);
+    }
+  }
+
+  /**
+   * Announces a change to screen readers via the live region.
+   * Uses requestAnimationFrame to ensure the announcement is processed.
+   */
+  private _announceChange(message: string): void {
+    if (!this._liveRegion) {
+      this._liveRegion = this.shadowRoot?.getElementById("accessibility-live-region") as HTMLElement;
+    }
+
+    if (!this._liveRegion || !message) return;
+
+    // Clear and reset to trigger announcement
+    this._liveRegion.textContent = "";
+    requestAnimationFrame(() => {
+      if (this._liveRegion) {
+        this._liveRegion.textContent = message;
+      }
+    });
   }
 
   /**
@@ -794,6 +841,16 @@ export class ABCEmergencyMapCard extends LitElement {
       this._markerManager.updateMarkers(entitiesForMarkers);
       // Apply zoom-based visibility to newly created markers
       this._updateMarkerZoomVisibility();
+
+      // Announce marker count changes to screen readers
+      const newCount = this._markerManager.markerCount;
+      if (newCount !== this._previousMarkerCount) {
+        this._previousMarkerCount = newCount;
+        if (newCount > 0) {
+          const plural = newCount === 1 ? "marker" : "markers";
+          this._announceChange(`${newCount} entity ${plural} displayed`);
+        }
+      }
     }
 
     // Update history trails (async, will render when data arrives)

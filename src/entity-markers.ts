@@ -292,23 +292,37 @@ function createMarkerIconHtml(data: EntityMarkerData, size: number): string {
 
 /**
  * Creates a popup content HTML for an entity marker.
+ * Uses semantic HTML for accessibility (dl/dt/dd structure).
  */
 export function createPopupContent(data: EntityMarkerData): string {
-  const parts: string[] = [
-    `<strong>${data.name}</strong>`,
-    `<br><small>${data.entityId}</small>`,
-    `<br>State: ${data.state}`,
+  // Escape HTML to prevent XSS
+  const escape = (str: string) =>
+    str.replace(/[&<>"']/g, (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] || c)
+    );
+
+  const safeEntityId = escape(data.entityId);
+  const uniqueId = `popup-${safeEntityId.replace(/\./g, "-")}`;
+
+  const items: string[] = [
+    `<dt class="sr-only">State</dt><dd>${escape(data.state)}</dd>`,
   ];
 
   if (data.battery !== undefined) {
-    parts.push(`<br>Battery: ${data.battery}%`);
+    items.push(`<dt>Battery</dt><dd>${data.battery}%</dd>`);
   }
 
   if (data.gpsAccuracy !== undefined) {
-    parts.push(`<br>GPS Accuracy: ${data.gpsAccuracy}m`);
+    items.push(`<dt>GPS Accuracy</dt><dd>${data.gpsAccuracy}m</dd>`);
   }
 
-  return `<div class="entity-popup">${parts.join("")}</div>`;
+  return `
+    <article class="entity-popup" role="dialog" aria-labelledby="${uniqueId}">
+      <h3 id="${uniqueId}" class="entity-popup-title">${escape(data.name)}</h3>
+      <small class="entity-popup-id">${safeEntityId}</small>
+      <dl class="entity-popup-details">${items.join("")}</dl>
+    </article>
+  `;
 }
 
 /**
