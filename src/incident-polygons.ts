@@ -205,11 +205,22 @@ function createFeature(
 }
 
 /**
- * Checks if an entity has GeoJSON/polygon data that can be rendered.
+ * Checks if an entity has GeoJSON/polygon data that can be rendered as a polygon.
+ * Point-only geometry returns false since those are rendered as markers instead.
  */
 function hasPolygonData(entity: HassEntity): boolean {
   const attrs = entity.attributes;
-  return !!(attrs.geojson || attrs.geometry);
+  const geojson = attrs.geojson || attrs.geometry;
+  if (!geojson) return false;
+
+  // Check geometry type - only true polygon types should be rendered by polygon manager
+  // Point geometry is handled by the marker system instead
+  const geometryType = (geojson as { type?: string }).type ||
+    (attrs.geometry_type as string);
+
+  return geometryType === "Polygon" ||
+    geometryType === "MultiPolygon" ||
+    geometryType === "GeometryCollection";
 }
 
 /**

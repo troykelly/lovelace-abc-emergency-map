@@ -649,15 +649,35 @@ export class ABCEmergencyMapCard extends LitElement {
       : [];
     console.log("ABC Emergency Map: Found entities:", allEntities.length, allEntities.map(e => e.entityId));
 
-    // Filter out entities that have polygon data - polygon IS the marker for those
+    // Filter out entities that have polygon/multipolygon data - polygon IS the marker for those
+    // Point-only geometry should still render as markers since they have no polygon bounds
     const entitiesWithoutPolygons = allEntities.filter(e => {
       const entity = this.hass.states[e.entityId];
       if (!entity) return true; // Keep if not found (shouldn't happen)
-      const hasPolygon = !!(entity.attributes.geojson || entity.attributes.geometry);
-      if (hasPolygon) {
-        console.log("ABC Emergency Map: Skipping marker for polygon entity:", e.entityId);
+
+      // Check if entity has geometry data
+      const geojson = entity.attributes.geojson || entity.attributes.geometry;
+      if (!geojson) return true; // No geometry = render as marker
+
+      // Check geometry type - only filter out actual polygon types
+      // Point geometry should render as a marker, not as a bare GeoJSON point
+      const geometryType = (geojson as { type?: string }).type ||
+        (entity.attributes.geometry_type as string);
+
+      const isPolygonType = geometryType === "Polygon" ||
+        geometryType === "MultiPolygon" ||
+        geometryType === "GeometryCollection";
+
+      if (isPolygonType) {
+        console.log("ABC Emergency Map: Skipping marker for polygon entity:", e.entityId, "type:", geometryType);
+        return false; // Filter out - will be rendered as polygon
       }
-      return !hasPolygon;
+
+      // Point or unknown geometry type - render as marker
+      if (geometryType === "Point") {
+        console.log("ABC Emergency Map: Rendering Point geometry as marker:", e.entityId);
+      }
+      return true;
     });
 
     if (this._markerManager) {
