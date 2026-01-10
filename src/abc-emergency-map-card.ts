@@ -15,7 +15,7 @@ import {
   DEFAULT_HIDE_MARKERS_FOR_POLYGONS,
   validateVisibilityConfig,
 } from "./types";
-import { getPolygonExtentMeters, isPolygonGeometryType } from "./geometry-utils";
+import { isPolygonGeometryType, polygonExtentCache } from "./geometry-utils";
 import { loadLeaflet, injectLeafletCSS } from "./leaflet-loader";
 import { resolveTileProvider } from "./tile-providers";
 import { EntityMarkerManager, getAllEntities } from "./entity-markers";
@@ -780,7 +780,7 @@ export class ABCEmergencyMapCard extends LitElement {
           if (isPolygonGeometryType(geometryType)) {
             // If polygon threshold is configured, check polygon size
             if (polygonThreshold !== undefined) {
-              const extent = getPolygonExtentMeters(geojson as GeoJSON.GeoJSON);
+              const extent = polygonExtentCache.getExtent(e.entityId, geojson as GeoJSON.GeoJSON);
               // Large polygons (>= threshold) get markers, small ones don't
               if (extent >= polygonThreshold) {
                 console.log("ABC Emergency Map: Large polygon, showing marker:", e.entityId, "extent:", Math.round(extent), "m");
@@ -801,6 +801,12 @@ export class ABCEmergencyMapCard extends LitElement {
           return true;
         })
       : allEntities; // Show all entities as markers when hide_markers_for_polygons is false
+
+    // Clean up stale cache entries for entities that no longer exist
+    if (polygonThreshold !== undefined) {
+      const activeEntityIds = new Set(allEntities.map(e => e.entityId));
+      polygonExtentCache.cleanup(activeEntityIds);
+    }
 
     if (this._markerManager) {
       this._markerManager.updateMarkers(entitiesForMarkers);

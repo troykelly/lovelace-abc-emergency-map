@@ -3,7 +3,11 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { isPolygonGeometryType, getGeometryType } from "./geometry-utils";
+import {
+  isPolygonGeometryType,
+  getGeometryType,
+  polygonExtentCache,
+} from "./geometry-utils";
 
 // Note: getPolygonExtentMeters requires Leaflet which is loaded at runtime
 // Those tests would require mocking Leaflet or running in an integration test
@@ -259,5 +263,216 @@ describe("getPolygonExtentMeters (with Leaflet mock)", () => {
     );
 
     warnSpy.mockRestore();
+  });
+});
+
+describe("polygonExtentCache", () => {
+  beforeEach(() => {
+    // Clear the cache before each test
+    polygonExtentCache.clear();
+
+    // Mock Leaflet
+    const mockBounds = {
+      isValid: vi.fn().mockReturnValue(true),
+      getNorthEast: vi.fn().mockReturnValue({ lat: -33.0, lng: 151.5 }),
+      getSouthWest: vi.fn().mockReturnValue({ lat: -34.0, lng: 150.5 }),
+    };
+
+    const mockLayer = {
+      getBounds: vi.fn().mockReturnValue(mockBounds),
+    };
+
+    const mockLatLng = {
+      distanceTo: vi.fn().mockReturnValue(111000),
+    };
+
+    vi.stubGlobal("L", {
+      geoJSON: vi.fn().mockReturnValue(mockLayer),
+      latLng: vi.fn().mockReturnValue(mockLatLng),
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    polygonExtentCache.clear();
+  });
+
+  describe("getExtent", () => {
+    it("should return 0 for undefined geometry", () => {
+      expect(polygonExtentCache.getExtent("entity1", undefined)).toBe(0);
+    });
+
+    it("should compute and cache extent on first call", () => {
+      const polygon: GeoJSON.Polygon = {
+        type: "Polygon",
+        coordinates: [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]],
+      };
+
+      const extent1 = polygonExtentCache.getExtent("entity1", polygon);
+
+      expect(extent1).toBeGreaterThan(0);
+      expect(polygonExtentCache.size).toBe(1);
+    });
+
+    it("should return cached value on subsequent calls with same geometry", () => {
+      const polygon: GeoJSON.Polygon = {
+        type: "Polygon",
+        coordinates: [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]],
+      };
+
+      const extent1 = polygonExtentCache.getExtent("entity1", polygon);
+      const geoJSONCalls = (L.geoJSON as ReturnType<typeof vi.fn>).mock.calls.length;
+
+      // Second call with same geometry should be cached
+      const extent2 = polygonExtentCache.getExtent("entity1", polygon);
+
+      expect(extent2).toBe(extent1);
+      // L.geoJSON should not have been called again
+      expect((L.geoJSON as ReturnType<typeof vi.fn>).mock.calls.length).toBe(geoJSONCalls);
+    });
+
+    it("should recompute when geometry changes", () => {
+      const polygon1: GeoJSON.Polygon = {
+        type: "Polygon",
+        coordinates: [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]],
+      };
+
+      const polygon2: GeoJSON.Polygon = {
+        type: "Polygon",
+        coordinates: [[[0, 0], [2, 0], [2, 2], [0, 2], [0, 0]]], // Different coordinates
+      };
+
+      polygonExtentCache.getExtent("entity1", polygon1);
+      const callsAfterFirst = (L.geoJSON as ReturnType<typeof vi.fn>).mock.calls.length;
+
+      // Call with different geometry should recompute
+      polygonExtentCache.getExtent("entity1", polygon2);
+
+      expect((L.geoJSON as ReturnType<typeof vi.fn>).mock.calls.length).toBe(callsAfterFirst + 1);
+    });
+
+    it("should cache different entities separately", () => {
+      const polygon: GeoJSON.Polygon = {
+        type: "Polygon",
+        coordinates: [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]],
+      };
+
+      polygonExtentCache.getExtent("entity1", polygon);
+      polygonExtentCache.getExtent("entity2", polygon);
+
+      expect(polygonExtentCache.size).toBe(2);
+    });
+  });
+
+  describe("remove", () => {
+    it("should remove a specific entity from the cache", () => {
+      const polygon: GeoJSON.Polygon = {
+        type: "Polygon",
+        coordinates: [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]],
+      };
+
+      polygonExtentCache.getExtent("entity1", polygon);
+      polygonExtentCache.getExtent("entity2", polygon);
+      expect(polygonExtentCache.size).toBe(2);
+
+      polygonExtentCache.remove("entity1");
+
+      expect(polygonExtentCache.size).toBe(1);
+    });
+  });
+
+  describe("cleanup", () => {
+    it("should remove entities not in the active set", () => {
+      const polygon: GeoJSON.Polygon = {
+        type: "Polygon",
+        coordinates: [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]],
+      };
+
+      polygonExtentCache.getExtent("entity1", polygon);
+      polygonExtentCache.getExtent("entity2", polygon);
+      polygonExtentCache.getExtent("entity3", polygon);
+      expect(polygonExtentCache.size).toBe(3);
+
+      const activeIds = new Set(["entity1", "entity3"]);
+      const removed = polygonExtentCache.cleanup(activeIds);
+
+      expect(removed).toBe(1);
+      expect(polygonExtentCache.size).toBe(2);
+    });
+
+    it("should return 0 when all entities are active", () => {
+      const polygon: GeoJSON.Polygon = {
+        type: "Polygon",
+        coordinates: [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]],
+      };
+
+      polygonExtentCache.getExtent("entity1", polygon);
+      polygonExtentCache.getExtent("entity2", polygon);
+
+      const activeIds = new Set(["entity1", "entity2"]);
+      const removed = polygonExtentCache.cleanup(activeIds);
+
+      expect(removed).toBe(0);
+      expect(polygonExtentCache.size).toBe(2);
+    });
+  });
+
+  describe("clear", () => {
+    it("should remove all entries from the cache", () => {
+      const polygon: GeoJSON.Polygon = {
+        type: "Polygon",
+        coordinates: [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]],
+      };
+
+      polygonExtentCache.getExtent("entity1", polygon);
+      polygonExtentCache.getExtent("entity2", polygon);
+      expect(polygonExtentCache.size).toBe(2);
+
+      polygonExtentCache.clear();
+
+      expect(polygonExtentCache.size).toBe(0);
+    });
+  });
+
+  describe("debug logging", () => {
+    it("should log cache hits when debug logging is enabled", () => {
+      const debugSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
+
+      const polygon: GeoJSON.Polygon = {
+        type: "Polygon",
+        coordinates: [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]],
+      };
+
+      polygonExtentCache.setDebugLogging(true);
+      polygonExtentCache.getExtent("entity1", polygon); // Miss
+      polygonExtentCache.getExtent("entity1", polygon); // Hit
+
+      expect(debugSpy).toHaveBeenCalledWith(
+        expect.stringContaining("cache MISS")
+      );
+      expect(debugSpy).toHaveBeenCalledWith(
+        expect.stringContaining("cache HIT")
+      );
+
+      debugSpy.mockRestore();
+      polygonExtentCache.setDebugLogging(false);
+    });
+
+    it("should not log when debug logging is disabled", () => {
+      const debugSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
+
+      const polygon: GeoJSON.Polygon = {
+        type: "Polygon",
+        coordinates: [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]],
+      };
+
+      polygonExtentCache.setDebugLogging(false);
+      polygonExtentCache.getExtent("entity1", polygon);
+      polygonExtentCache.getExtent("entity1", polygon);
+
+      expect(debugSpy).not.toHaveBeenCalled();
+
+      debugSpy.mockRestore();
+    });
   });
 });
