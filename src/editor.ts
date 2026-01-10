@@ -407,6 +407,15 @@ export class ABCEmergencyMapCardEditor extends LitElement {
             this._config.hide_markers_for_polygons ?? true
           )}
 
+          ${this._renderOptionalSlider(
+            "Marker Minimum Zoom",
+            "Only show markers when zoomed in (0 = always visible)",
+            "marker_min_zoom",
+            this._config.marker_min_zoom,
+            0,
+            20
+          )}
+
           ${this._renderConfigWarnings()}
 
           ${this._renderToggle(
@@ -586,6 +595,42 @@ export class ABCEmergencyMapCardEditor extends LitElement {
   }
 
   /**
+   * Renders an optional slider where 0 means "disabled/not set".
+   * When value is 0 or undefined, the feature is disabled.
+   */
+  private _renderOptionalSlider(
+    label: string,
+    description: string,
+    configKey: string,
+    value: number | undefined,
+    min: number,
+    max: number
+  ): TemplateResult {
+    const displayValue = value ?? 0;
+    const displayText = displayValue === 0 ? "Always" : String(displayValue);
+
+    return html`
+      <div class="slider-row">
+        <div class="slider-header">
+          <div>
+            <span class="slider-label">${label}</span>
+            <div class="toggle-description">${description}</div>
+          </div>
+          <span class="slider-value">${displayText}</span>
+        </div>
+        <ha-slider
+          .value=${displayValue}
+          .min=${min}
+          .max=${max}
+          .step=${1}
+          pin
+          @change=${(e: Event) => this._optionalSliderChanged(e, configKey)}
+        ></ha-slider>
+      </div>
+    `;
+  }
+
+  /**
    * Renders configuration warnings for conflicting visibility options.
    */
   private _renderConfigWarnings(): TemplateResult | typeof nothing {
@@ -608,6 +653,17 @@ export class ABCEmergencyMapCardEditor extends LitElement {
         `
       )}
     `;
+  }
+
+  /**
+   * Handles optional slider changes.
+   * Value of 0 means undefined (disabled).
+   */
+  private _optionalSliderChanged(ev: Event, configKey: string): void {
+    const target = ev.target as HTMLInputElement;
+    const numValue = Number(target.value);
+    // 0 means "always visible" = undefined in config
+    this._updateConfig({ [configKey]: numValue === 0 ? undefined : numValue });
   }
 
   /**

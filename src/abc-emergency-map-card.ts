@@ -79,6 +79,9 @@ export class ABCEmergencyMapCard extends LitElement {
   /** Bound theme change handler for cleanup */
   private _boundThemeHandler?: () => void;
 
+  /** Bound zoom event handler for cleanup */
+  private _boundZoomHandler?: () => void;
+
   static styles = styles;
 
   /**
@@ -415,6 +418,14 @@ export class ABCEmergencyMapCard extends LitElement {
       // Initialize incident polygon manager for ABC Emergency
       this._incidentManager = new IncidentPolygonManager(this._map, this._config!);
 
+      // Set up zoom event listener for marker visibility control
+      if (this._config?.marker_min_zoom !== undefined) {
+        this._boundZoomHandler = () => this._updateMarkerZoomVisibility();
+        this._map.on("zoomend", this._boundZoomHandler);
+        // Apply initial visibility based on current zoom
+        this._updateMarkerZoomVisibility();
+      }
+
       // Set up ResizeObserver for container size changes
       this._setupResizeObserver(mapContainer);
 
@@ -634,6 +645,12 @@ export class ABCEmergencyMapCard extends LitElement {
     // Clear tile config cache
     this._currentTileConfig = undefined;
 
+    // Remove zoom event listener
+    if (this._map && this._boundZoomHandler) {
+      this._map.off("zoomend", this._boundZoomHandler);
+      this._boundZoomHandler = undefined;
+    }
+
     // Remove and cleanup map
     if (this._map) {
       this._map.remove();
@@ -646,6 +663,26 @@ export class ABCEmergencyMapCard extends LitElement {
    */
   private async _retryLoad(): Promise<void> {
     await this._initializeMap();
+  }
+
+  /**
+   * Updates marker visibility based on current zoom level.
+   * Called on zoom changes when marker_min_zoom is configured.
+   */
+  private _updateMarkerZoomVisibility(): void {
+    if (!this._map || !this._markerManager || !this._config) {
+      return;
+    }
+
+    const minZoom = this._config.marker_min_zoom;
+    if (minZoom === undefined) {
+      return;
+    }
+
+    const currentZoom = this._map.getZoom();
+    const shouldShow = currentZoom >= minZoom;
+
+    this._markerManager.setZoomVisibility(shouldShow);
   }
 
   /**
@@ -710,6 +747,8 @@ export class ABCEmergencyMapCard extends LitElement {
 
     if (this._markerManager) {
       this._markerManager.updateMarkers(entitiesForMarkers);
+      // Apply zoom-based visibility to newly created markers
+      this._updateMarkerZoomVisibility();
     }
 
     // Update history trails (async, will render when data arrives)

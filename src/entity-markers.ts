@@ -411,6 +411,24 @@ export class EntityMarkerManager {
   }
 
   /**
+   * Sets visibility of all markers based on zoom level.
+   * Uses CSS class for smooth opacity transition.
+   * @param visible - Whether markers should be visible
+   */
+  public setZoomVisibility(visible: boolean): void {
+    for (const marker of this._markers.values()) {
+      const element = marker.getElement();
+      if (element) {
+        if (visible) {
+          element.classList.remove("zoom-hidden");
+        } else {
+          element.classList.add("zoom-hidden");
+        }
+      }
+    }
+  }
+
+  /**
    * Removes all markers from the map.
    */
   public clear(): void {

@@ -100,6 +100,14 @@ export interface ABCEmergencyMapCardConfig extends LovelaceCardConfig {
    * @default true
    */
   hide_markers_for_polygons?: boolean;
+  /**
+   * Minimum zoom level at which markers are visible.
+   * Markers are hidden when zoom level is below this value.
+   * When undefined, markers are always visible (subject to other visibility settings).
+   * Valid range: 1-20
+   * @example marker_min_zoom: 12 // Show markers only when zoomed in close
+   */
+  marker_min_zoom?: number;
   /** Tile provider identifier or 'custom' for custom URL */
   tile_provider?: TileProviderId;
   /** Custom tile URL template (required when tile_provider is 'custom') */

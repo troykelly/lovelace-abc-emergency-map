@@ -190,6 +190,18 @@ export const styles = css`
     transform: scale(1.1);
   }
 
+  /* Hidden state for markers (zoom-based visibility) */
+  .entity-marker.zoom-hidden {
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transition: opacity 0.2s ease;
+  }
+
+  .entity-marker:not(.zoom-hidden) {
+    opacity: 1;
+    transition: opacity 0.2s ease;
+  }
+
   .entity-popup {
     font-size: 13px;
     line-height: 1.4;
