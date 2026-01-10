@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] - 2026-01-10
+
+### Changed
+
+- **Home Assistant Local Asset Support** - Improved Cast compatibility by preferring HA's local Leaflet assets
+  - CSS now loaded from `/static/images/leaflet/leaflet.css` first (no external dependencies)
+  - Marker images use HA's local path `/static/images/leaflet/images/`
+  - Falls back to CDN (unpkg.com then jsdelivr.net) if local assets unavailable
+- **Existing Leaflet Detection** - Checks for `window.L` before loading from CDN
+  - Avoids duplicate Leaflet loads if another card has already loaded it
+  - Reduces resource usage and potential conflicts
+- Enhanced logging to indicate which asset sources are being used
+
 ## [1.2.0] - 2026-01-10
 
 ### Added
@@ -73,6 +86,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Keyboard navigation
 - Responsive design
 
+[1.2.1]: https://github.com/troykelly/lovelace-abc-emergency-map/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/troykelly/lovelace-abc-emergency-map/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/troykelly/lovelace-abc-emergency-map/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/troykelly/lovelace-abc-emergency-map/releases/tag/v1.0.0
