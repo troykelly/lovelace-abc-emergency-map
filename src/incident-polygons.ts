@@ -208,7 +208,7 @@ function createFeature(
  * Checks if an entity has GeoJSON/polygon data that can be rendered as a polygon.
  * Point-only geometry returns false since those are rendered as markers instead.
  */
-function hasPolygonData(entity: HassEntity): boolean {
+export function hasPolygonData(entity: HassEntity): boolean {
   const attrs = entity.attributes;
   const geojson = attrs.geojson || attrs.geometry;
   if (!geojson) return false;
