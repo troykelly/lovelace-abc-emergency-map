@@ -730,21 +730,24 @@ export class IncidentPolygonManager {
       ? `<div class="incident-popup-link"><a href="${this._escapeHtml(incident.external_link)}" target="_blank" rel="noopener noreferrer">More Info →</a></div>`
       : "";
 
+    // Create unique ID for ARIA labelling
+    const popupId = `incident-popup-${incident.id.replace(/[^a-zA-Z0-9]/g, "-")}`;
+
     const content = `
-      <div class="incident-popup">
-        <div class="incident-popup-header" style="border-left: 4px solid ${alertColor}; padding-left: 8px;">
-          <strong>${this._escapeHtml(incident.headline)}</strong>
-        </div>
+      <article class="incident-popup" role="dialog" aria-labelledby="${popupId}-title">
+        <header class="incident-popup-header" style="border-left: 4px solid ${alertColor}; padding-left: 8px;">
+          <h3 id="${popupId}-title" class="incident-popup-title">${this._escapeHtml(incident.headline)}</h3>
+        </header>
         <div class="incident-popup-body">
-          <div class="incident-alert-badge" style="background: ${alertColor}; color: ${this._getContrastColor(alertColor)};">
-            ${alertLabel}
+          <div class="incident-alert-badge" style="background: ${alertColor}; color: ${this._getContrastColor(alertColor)};" role="status" aria-label="Alert level: ${alertLabel}">
+            <span aria-hidden="true">${alertLabel}</span>
           </div>
           ${typeInfo}
           ${timeInfo}
           ${adviceInfo}
           ${linkInfo}
         </div>
-      </div>
+      </article>
     `;
 
     (layer as Layer & { bindPopup: (content: string, options?: object) => void }).bindPopup(
