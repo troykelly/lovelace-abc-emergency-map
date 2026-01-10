@@ -262,6 +262,30 @@ export class ABCEmergencyMapCardEditor extends LitElement {
       color: var(--secondary-text-color);
       font-size: 12px;
     }
+
+    .input-header {
+      margin-bottom: 8px;
+    }
+
+    .input-label {
+      font-size: 14px;
+    }
+
+    .input-with-unit {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .input-with-unit ha-textfield {
+      flex: 1;
+    }
+
+    .unit-label {
+      font-size: 14px;
+      color: var(--secondary-text-color);
+      min-width: 50px;
+    }
   `;
 
   public setConfig(config: ABCEmergencyMapCardConfig): void {
@@ -414,6 +438,17 @@ export class ABCEmergencyMapCardEditor extends LitElement {
             this._config.marker_min_zoom,
             0,
             20
+          )}
+
+          ${this._renderNumberInputWithUnit(
+            "Polygon Size Threshold",
+            "Show markers for polygons larger than this (0 = disabled)",
+            "marker_polygon_threshold",
+            this._config.marker_polygon_threshold,
+            "meters",
+            0,
+            100000,
+            500
           )}
 
           ${this._renderConfigWarnings()}
@@ -664,6 +699,61 @@ export class ABCEmergencyMapCardEditor extends LitElement {
     const numValue = Number(target.value);
     // 0 means "always visible" = undefined in config
     this._updateConfig({ [configKey]: numValue === 0 ? undefined : numValue });
+  }
+
+  /**
+   * Renders a number input with unit label.
+   * Empty or 0 value means the feature is disabled.
+   */
+  private _renderNumberInputWithUnit(
+    label: string,
+    description: string,
+    configKey: string,
+    value: number | undefined,
+    unit: string,
+    min: number,
+    max: number,
+    step: number = 100
+  ): TemplateResult {
+    const displayValue = value ?? "";
+
+    return html`
+      <div class="form-row">
+        <div class="input-header">
+          <span class="input-label">${label}</span>
+          <div class="toggle-description">${description}</div>
+        </div>
+        <div class="input-with-unit">
+          <ha-textfield
+            type="number"
+            .value=${String(displayValue)}
+            .min=${String(min)}
+            .max=${String(max)}
+            .step=${String(step)}
+            @change=${(e: Event) => this._numberInputChanged(e, configKey)}
+            placeholder="Disabled"
+          ></ha-textfield>
+          <span class="unit-label">${unit}</span>
+        </div>
+      </div>
+    `;
+  }
+
+  /**
+   * Handles number input changes.
+   * Empty or 0 means undefined (disabled).
+   */
+  private _numberInputChanged(ev: Event, configKey: string): void {
+    const target = ev.target as HTMLInputElement;
+    const strValue = target.value.trim();
+    if (strValue === "" || strValue === "0") {
+      this._updateConfig({ [configKey]: undefined });
+    } else {
+      const numValue = Number(strValue);
+      if (!isNaN(numValue) && numValue > 0) {
+        this._updateConfig({ [configKey]: numValue });
+      }
+    }
   }
 
   /**

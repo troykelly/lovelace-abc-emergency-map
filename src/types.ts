@@ -108,6 +108,15 @@ export interface ABCEmergencyMapCardConfig extends LovelaceCardConfig {
    * @example marker_min_zoom: 12 // Show markers only when zoomed in close
    */
   marker_min_zoom?: number;
+  /**
+   * Size threshold in meters for hiding markers based on polygon size.
+   * Markers are hidden for polygons smaller than this extent.
+   * Large polygons (weather warnings) benefit from centroid markers,
+   * while small polygons (bushfire perimeters) are obscured by markers.
+   * When undefined, all polygon sizes use the same visibility logic.
+   * @example marker_polygon_threshold: 5000 // Hide markers for polygons < 5km extent
+   */
+  marker_polygon_threshold?: number;
   /** Tile provider identifier or 'custom' for custom URL */
   tile_provider?: TileProviderId;
   /** Custom tile URL template (required when tile_provider is 'custom') */

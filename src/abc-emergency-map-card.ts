@@ -22,7 +22,7 @@ import { ZoneManager, getAllZones } from "./zone-renderer";
 import { BoundsManager } from "./bounds-manager";
 import { HistoryTrailManager } from "./history-trails";
 import { IncidentPolygonManager } from "./incident-polygons";
-import type { Map as LeafletMap, TileLayer } from "leaflet";
+import type { Map as LeafletMap, TileLayer, LatLngBounds } from "leaflet";
 
 // Import editor component so it's bundled
 import "./editor";
@@ -31,6 +31,38 @@ import "./editor";
 
 /** Default center point for Australia */
 const DEFAULT_CENTER: [number, number] = [-25.2744, 133.7751];
+
+/**
+ * Calculates the maximum extent (width or height) of a GeoJSON geometry in meters.
+ * Uses Leaflet's geodetic distance calculation for accuracy.
+ *
+ * @param geojson - A GeoJSON geometry object (Polygon, MultiPolygon, GeometryCollection)
+ * @returns The maximum extent in meters, or 0 if the geometry is invalid/empty
+ */
+function getPolygonExtentMeters(geojson: GeoJSON.GeoJSON | undefined): number {
+  if (!geojson) return 0;
+
+  try {
+    // Create a temporary GeoJSON layer to get bounds
+    const layer = L.geoJSON(geojson);
+    const bounds: LatLngBounds = layer.getBounds();
+
+    if (!bounds.isValid()) return 0;
+
+    const ne = bounds.getNorthEast();
+    const sw = bounds.getSouthWest();
+
+    // Calculate width and height in meters using Leaflet's geodetic distance
+    const width = L.latLng(ne.lat, sw.lng).distanceTo(ne);
+    const height = L.latLng(sw.lat, ne.lng).distanceTo(sw);
+
+    // Return the maximum dimension
+    return Math.max(width, height);
+  } catch {
+    console.warn("ABC Emergency Map: Failed to calculate polygon extent");
+    return 0;
+  }
+}
 
 /** Default zoom level showing most of Australia */
 const DEFAULT_ZOOM = 4;
@@ -711,6 +743,7 @@ export class ABCEmergencyMapCard extends LitElement {
     // Determine if we should hide markers for polygon entities
     const hideMarkersForPolygons = this._config.hide_markers_for_polygons ??
       DEFAULT_HIDE_MARKERS_FOR_POLYGONS;
+    const polygonThreshold = this._config.marker_polygon_threshold;
 
     // Filter out entities that have polygon/multipolygon data (if configured)
     // Point-only geometry should always render as markers since they have no polygon bounds
@@ -733,6 +766,18 @@ export class ABCEmergencyMapCard extends LitElement {
             geometryType === "GeometryCollection";
 
           if (isPolygonType) {
+            // If polygon threshold is configured, check polygon size
+            if (polygonThreshold !== undefined) {
+              const extent = getPolygonExtentMeters(geojson as GeoJSON.GeoJSON);
+              // Large polygons (>= threshold) get markers, small ones don't
+              if (extent >= polygonThreshold) {
+                console.log("ABC Emergency Map: Large polygon, showing marker:", e.entityId, "extent:", Math.round(extent), "m");
+                return true; // Show marker for large polygon
+              }
+              console.log("ABC Emergency Map: Small polygon, hiding marker:", e.entityId, "extent:", Math.round(extent), "m, threshold:", polygonThreshold, "m");
+              return false; // Hide marker for small polygon
+            }
+
             console.log("ABC Emergency Map: Skipping marker for polygon entity:", e.entityId, "type:", geometryType);
             return false; // Filter out - will be rendered as polygon
           }
