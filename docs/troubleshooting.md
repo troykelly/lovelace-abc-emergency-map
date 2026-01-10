@@ -13,6 +13,7 @@ Common issues and their solutions for the ABC Emergency Map Card.
   - [Map is Blank/Grey](#map-is-blankgrey)
   - [Wrong Location Displayed](#wrong-location-displayed)
 - [Display Issues](#display-issues)
+- [Cast Issues](#cast-issues)
 - [Performance Issues](#performance-issues)
 - [Integration Issues](#integration-issues)
 - [Getting Help](#getting-help)
@@ -299,6 +300,95 @@ Common issues and their solutions for the ABC Emergency Map Card.
 
 3. **Verify incident is "new":**
    - Only incidents < 5 minutes old animate
+
+---
+
+## Cast Issues
+
+This card includes experimental support for Google Cast devices (Chromecast, Nest Hub, etc.).
+
+### Configuration Error on Cast
+
+**Symptoms:**
+- Card shows "Configuration Error" when cast to Chromecast/Nest Hub
+- Works fine in regular browsers
+
+**Possible Causes:**
+
+1. **Network restrictions in Cast environment**
+   - Cast devices may have limited network access
+   - CDN resources may fail to load
+
+2. **CORS issues**
+   - Some Home Assistant configurations may not have proper CORS headers for Cast
+
+**Solutions:**
+
+1. **Check console logs on Cast**
+   - Cast devices are difficult to debug
+   - The card logs detailed error messages with Cast-specific diagnostics
+
+2. **Verify CORS configuration**
+   Add to your `configuration.yaml`:
+   ```yaml
+   http:
+     cors_allowed_origins:
+       - https://cast.home-assistant.io
+   ```
+   (Note: HA 0.97+ should handle this automatically)
+
+3. **Use fallback CDN (automatic)**
+   - The card automatically tries jsdelivr.net if unpkg.com fails
+   - Check console for "using fallback CDN" messages
+
+4. **Use built-in map card for Cast**
+   If custom cards continue to fail, use the native map card for Cast dashboards:
+   ```yaml
+   type: map
+   geo_location_sources:
+     - abc_emergency
+   entities:
+     - zone.home
+   dark_mode: true
+   ```
+
+### Cast Shows Loading Indicator
+
+**Symptoms:**
+- Card stuck on "Loading map (Cast mode)..."
+
+**Solutions:**
+
+1. **Check network connectivity**
+   - Cast device needs access to CDN URLs (unpkg.com, jsdelivr.net)
+   - Corporate/restrictive networks may block these
+
+2. **Wait longer**
+   - Cast devices may be slower to load external resources
+
+3. **Check for firewall rules**
+   - Ensure CDN domains aren't blocked
+
+### Debugging Cast Issues
+
+The card provides enhanced logging in Cast environments:
+
+```
+ABC Emergency Map: Cast environment detected { ... }
+ABC Emergency Map: Loading Leaflet in Cast environment
+ABC Emergency Map: Leaflet X.X.X ready (using fallback CDN)
+ABC Emergency Map: Successfully initialized in Cast environment
+```
+
+Errors show specific error types:
+```
+ABC Emergency Map: Cast error type: CORS_BLOCKED|RESOURCE_LOAD_FAILED|etc
+```
+
+To debug:
+1. Open the Cast device's debug URL (if available)
+2. Or use the Home Assistant Cast app's debugging features
+3. Check for error patterns in the console
 
 ---
 

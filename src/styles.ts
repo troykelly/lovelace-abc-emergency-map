@@ -134,6 +134,13 @@ export const styles = css`
     max-width: 300px;
   }
 
+  .error-hint {
+    font-size: 12px;
+    color: var(--secondary-text-color, #666);
+    margin-top: 4px;
+    max-width: 280px;
+  }
+
   /* Australian Warning System legend */
   .legend {
     background: var(--card-background-color, white);

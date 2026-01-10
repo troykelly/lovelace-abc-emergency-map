@@ -23,6 +23,11 @@ import { ZoneManager, getAllZones } from "./zone-renderer";
 import { BoundsManager } from "./bounds-manager";
 import { HistoryTrailManager } from "./history-trails";
 import { IncidentPolygonManager } from "./incident-polygons";
+import {
+  isCastEnvironment,
+  classifyCastError,
+  getCastErrorMessage,
+} from "./cast-compat";
 import type { Map as LeafletMap, TileLayer } from "leaflet";
 
 // Import editor component so it's bundled
@@ -197,12 +202,16 @@ export class ABCEmergencyMapCard extends LitElement {
    * Renders the map content based on loading state.
    */
   private _renderMapContent(): TemplateResult {
+    const inCast = isCastEnvironment();
+
     switch (this._loadingState) {
       case "loading":
         return html`
           <div class="loading-container" role="status" aria-label="Loading map">
             <ha-circular-progress indeterminate></ha-circular-progress>
-            <div class="loading-text">Loading map...</div>
+            <div class="loading-text">
+              Loading map${inCast ? " (Cast mode)" : ""}...
+            </div>
           </div>
         `;
       case "error":
@@ -212,6 +221,13 @@ export class ABCEmergencyMapCard extends LitElement {
             <div class="error-text">
               ${this._errorMessage || "Failed to load map"}
             </div>
+            ${inCast
+              ? html`
+                  <div class="error-hint">
+                    For Cast devices, consider using the built-in map card.
+                  </div>
+                `
+              : ""}
             <mwc-button @click=${this._retryLoad}>Retry</mwc-button>
           </div>
         `;
@@ -376,9 +392,17 @@ export class ABCEmergencyMapCard extends LitElement {
   /**
    * Initializes the Leaflet map.
    * Loads Leaflet dynamically if not already loaded.
+   *
+   * Cast Compatibility:
+   * - Detects Cast environment and logs appropriately
+   * - Provides specific error messages for Cast failures
+   * - Uses fallback CDNs if primary fails
    */
   private async _initializeMap(): Promise<void> {
-    console.log("ABC Emergency Map: Initializing map (v2.0 - Shadow DOM CSS fix)");
+    const inCast = isCastEnvironment();
+    console.log(
+      `ABC Emergency Map: Initializing map (v2.1 - Cast compatibility)${inCast ? " [Cast Environment]" : ""}`
+    );
     this._loadingState = "loading";
     this._errorMessage = undefined;
 
@@ -387,6 +411,7 @@ export class ABCEmergencyMapCard extends LitElement {
 
     try {
       // Load Leaflet from CDN if needed
+      // This has fallback CDN support for Cast environments
       await loadLeaflet();
 
       // Inject Leaflet CSS into our shadow root
@@ -455,11 +480,26 @@ export class ABCEmergencyMapCard extends LitElement {
       if (this.hass) {
         this._updateMapData();
       }
+
+      if (inCast) {
+        console.log("ABC Emergency Map: Successfully initialized in Cast environment");
+      }
     } catch (error) {
       console.error("ABC Emergency Map: Failed to initialize map:", error);
       this._loadingState = "error";
-      this._errorMessage =
-        error instanceof Error ? error.message : "Unknown error occurred";
+
+      // Provide specific error messages for Cast environments
+      if (inCast) {
+        const errorType = classifyCastError(error);
+        this._errorMessage = getCastErrorMessage(errorType);
+        console.error(
+          `ABC Emergency Map: Cast error type: ${errorType}`,
+          error
+        );
+      } else {
+        this._errorMessage =
+          error instanceof Error ? error.message : "Unknown error occurred";
+      }
     }
   }
 

@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-01-10
+
+### Added
+
+- **Cast Compatibility Improvements** - Enhanced support for Google Cast devices (Chromecast, Nest Hub)
+  - Cast environment detection with multiple detection methods
+  - Fallback CDN support - automatically tries jsdelivr.net if unpkg.com fails
+  - Cast-specific error messages with helpful guidance
+  - SRI disabled in Cast environments to avoid compatibility issues
+- **New Cast Compatibility Module** (`src/cast-compat.ts`)
+  - Error classification (CORS, network, LitElement issues)
+  - User-friendly error messages for each error type
+  - URL safety checking for CDN resources
+- **Unit Tests** - 14 new tests for Cast compatibility (87 total tests)
+
+### Changed
+
+- Improved error handling with Cast-aware messaging
+- Loading indicator now shows "(Cast mode)" when running on Cast devices
+- Enhanced console logging for debugging Cast issues
+
+### Fixed
+
+- Better resilience when loading Leaflet from CDN on restricted environments
+
 ## [1.1.0] - 2026-01-10
 
 ### Added
@@ -48,5 +73,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Keyboard navigation
 - Responsive design
 
+[1.2.0]: https://github.com/troykelly/lovelace-abc-emergency-map/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/troykelly/lovelace-abc-emergency-map/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/troykelly/lovelace-abc-emergency-map/releases/tag/v1.0.0

@@ -196,6 +196,18 @@ When the map is focused:
 
 ---
 
+## Cast Compatibility
+
+This card includes experimental support for Google Cast devices (Chromecast, Nest Hub). If you experience issues when casting:
+
+- The card will automatically try fallback CDNs if the primary fails
+- Cast-specific error messages will help diagnose issues
+- For maximum compatibility, consider using the built-in Home Assistant `map` card for Cast dashboards
+
+See [Troubleshooting](docs/troubleshooting.md) for Cast-specific solutions.
+
+---
+
 ## Documentation
 
 - [Getting Started Guide](docs/getting-started.md) - First-time setup
