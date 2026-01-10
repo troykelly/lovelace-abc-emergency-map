@@ -64,6 +64,13 @@ export interface ABCEmergencyMapCardConfig extends LovelaceCardConfig {
   hours_to_show?: number;
   dark_mode?: DarkModeSetting;
   show_warning_levels?: boolean;
+  /**
+   * Whether to hide point markers for incidents that have polygon boundaries.
+   * When true (default), incidents with polygon data only show the polygon.
+   * When false, both the polygon and a point marker are displayed.
+   * Point-only geometry always renders as a marker regardless of this setting.
+   */
+  hide_markers_for_polygons?: boolean;
   /** Tile provider identifier or 'custom' for custom URL */
   tile_provider?: TileProviderId;
   /** Custom tile URL template (required when tile_provider is 'custom') */
@@ -371,6 +378,9 @@ export const DEFAULT_SHOW_BADGE = true;
 
 /** Default show new indicator setting */
 export const DEFAULT_SHOW_NEW_INDICATOR = true;
+
+/** Default hide markers for polygons setting */
+export const DEFAULT_HIDE_MARKERS_FOR_POLYGONS = true;
 
 /** Default badge position */
 export const DEFAULT_BADGE_POSITION = "top-right";

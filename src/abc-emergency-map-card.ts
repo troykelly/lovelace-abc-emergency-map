@@ -10,7 +10,7 @@ import { customElement, property, state } from "lit/decorators.js";
 import type { HomeAssistant } from "custom-card-helpers";
 import { styles } from "./styles";
 import type { ABCEmergencyMapCardConfig, TileProviderConfig } from "./types";
-import { DEFAULT_DARK_MODE } from "./types";
+import { DEFAULT_DARK_MODE, DEFAULT_HIDE_MARKERS_FOR_POLYGONS } from "./types";
 import { loadLeaflet, injectLeafletCSS } from "./leaflet-loader";
 import { resolveTileProvider } from "./tile-providers";
 import { EntityMarkerManager, getAllEntities } from "./entity-markers";
@@ -649,46 +649,52 @@ export class ABCEmergencyMapCard extends LitElement {
       : [];
     console.log("ABC Emergency Map: Found entities:", allEntities.length, allEntities.map(e => e.entityId));
 
-    // Filter out entities that have polygon/multipolygon data - polygon IS the marker for those
-    // Point-only geometry should still render as markers since they have no polygon bounds
-    const entitiesWithoutPolygons = allEntities.filter(e => {
-      const entity = this.hass.states[e.entityId];
-      if (!entity) return true; // Keep if not found (shouldn't happen)
+    // Determine if we should hide markers for polygon entities
+    const hideMarkersForPolygons = this._config.hide_markers_for_polygons ??
+      DEFAULT_HIDE_MARKERS_FOR_POLYGONS;
 
-      // Check if entity has geometry data
-      const geojson = entity.attributes.geojson || entity.attributes.geometry;
-      if (!geojson) return true; // No geometry = render as marker
+    // Filter out entities that have polygon/multipolygon data (if configured)
+    // Point-only geometry should always render as markers since they have no polygon bounds
+    const entitiesForMarkers = hideMarkersForPolygons
+      ? allEntities.filter(e => {
+          const entity = this.hass.states[e.entityId];
+          if (!entity) return true; // Keep if not found (shouldn't happen)
 
-      // Check geometry type - only filter out actual polygon types
-      // Point geometry should render as a marker, not as a bare GeoJSON point
-      const geometryType = (geojson as { type?: string }).type ||
-        (entity.attributes.geometry_type as string);
+          // Check if entity has geometry data
+          const geojson = entity.attributes.geojson || entity.attributes.geometry;
+          if (!geojson) return true; // No geometry = render as marker
 
-      const isPolygonType = geometryType === "Polygon" ||
-        geometryType === "MultiPolygon" ||
-        geometryType === "GeometryCollection";
+          // Check geometry type - only filter out actual polygon types
+          // Point geometry should render as a marker, not as a bare GeoJSON point
+          const geometryType = (geojson as { type?: string }).type ||
+            (entity.attributes.geometry_type as string);
 
-      if (isPolygonType) {
-        console.log("ABC Emergency Map: Skipping marker for polygon entity:", e.entityId, "type:", geometryType);
-        return false; // Filter out - will be rendered as polygon
-      }
+          const isPolygonType = geometryType === "Polygon" ||
+            geometryType === "MultiPolygon" ||
+            geometryType === "GeometryCollection";
 
-      // Point or unknown geometry type - render as marker
-      if (geometryType === "Point") {
-        console.log("ABC Emergency Map: Rendering Point geometry as marker:", e.entityId);
-      }
-      return true;
-    });
+          if (isPolygonType) {
+            console.log("ABC Emergency Map: Skipping marker for polygon entity:", e.entityId, "type:", geometryType);
+            return false; // Filter out - will be rendered as polygon
+          }
+
+          // Point or unknown geometry type - render as marker
+          if (geometryType === "Point") {
+            console.log("ABC Emergency Map: Rendering Point geometry as marker:", e.entityId);
+          }
+          return true;
+        })
+      : allEntities; // Show all entities as markers when hide_markers_for_polygons is false
 
     if (this._markerManager) {
-      this._markerManager.updateMarkers(entitiesWithoutPolygons);
+      this._markerManager.updateMarkers(entitiesForMarkers);
     }
 
     // Update history trails (async, will render when data arrives)
     // Only track history for non-polygon entities (markers)
     if (this._historyManager) {
       this._historyManager.updateConfig(this._config);
-      const entityIds = entitiesWithoutPolygons.map((e) => e.entityId);
+      const entityIds = entitiesForMarkers.map((e) => e.entityId);
       // Fire and forget - trails will update asynchronously
       this._historyManager.updateTrails(this.hass, entityIds);
     }

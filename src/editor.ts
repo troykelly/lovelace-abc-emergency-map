@@ -367,6 +367,13 @@ export class ABCEmergencyMapCardEditor extends LitElement {
           )}
 
           ${this._renderToggle(
+            "Hide Markers for Polygons",
+            "Don't show point markers for incidents with polygon boundaries",
+            "hide_markers_for_polygons",
+            this._config.hide_markers_for_polygons ?? true
+          )}
+
+          ${this._renderToggle(
             "Show History Trails",
             "Display movement history for entities",
             "show_history",
