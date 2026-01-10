@@ -57,6 +57,47 @@ type: custom:abc-emergency-map-card
 show_warning_levels: true  # Enable polygon rendering (default)
 ```
 
+### Data Flow Architecture
+
+Understanding how incident data flows from Home Assistant to the map:
+
+```
+Entity State (from ABC Emergency Integration)
+│
+├── attributes.geojson or geometry
+│   │
+│   ├── type: "Polygon" or "MultiPolygon"
+│   │   └─→ Renders as incident polygon with severity coloring
+│   │       └─→ Marker visibility controlled by hide_markers_for_polygons
+│   │
+│   └── type: "Point"
+│       └─→ Renders as marker only (no polygon boundary available)
+│           └─→ Affected by marker_min_zoom and marker_polygon_threshold
+│
+├── attributes.latitude/longitude
+│   └─→ Marker position (fallback if no geometry)
+│
+└── attributes.alert_level
+    └─→ Determines color: extreme=red, severe=orange, moderate=yellow, minor=blue
+```
+
+### Marker vs Polygon Decision Tree
+
+```
+For each incident entity:
+│
+├── Has Polygon/MultiPolygon geometry?
+│   ├── YES → Render polygon
+│   │         └─→ Show marker? Check hide_markers_for_polygons
+│   │             ├── false → Show marker alongside polygon
+│   │             └── true  → Hide marker (default)
+│   │
+│   └── NO (Point or no geometry) → Render marker only
+│       └─→ Apply marker_min_zoom and marker_polygon_threshold filters
+```
+
+See [Marker Visibility Configuration](configuration.md#marker-visibility) for detailed options.
+
 ---
 
 ## Alert Level Colors

@@ -8,6 +8,10 @@ Common issues and their solutions for the ABC Emergency Map Card.
 
 - [Installation Issues](#installation-issues)
 - [Configuration Issues](#configuration-issues)
+  - [Map Shows But No Polygons](#map-shows-but-no-polygons)
+  - [Incidents Not Visible](#incidents-not-visible-marker-visibility-issues)
+  - [Map is Blank/Grey](#map-is-blankgrey)
+  - [Wrong Location Displayed](#wrong-location-displayed)
 - [Display Issues](#display-issues)
 - [Performance Issues](#performance-issues)
 - [Integration Issues](#integration-issues)
@@ -97,6 +101,61 @@ Common issues and their solutions for the ABC Emergency Map Card.
    geo_location_sources:
      - sensor.abc_emergency_auremer_incidents_total
    ```
+
+### Incidents Not Visible (Marker Visibility Issues)
+
+**Symptoms:**
+- Incident appears on ABC Emergency website but not on your map
+- Polygon visible but no marker
+- Marker disappears when zooming out
+
+**Solutions:**
+
+1. **Check geometry type**
+
+   Some incidents have Point-only geometry (no polygon boundaries). Check the entity's `geometry_type` attribute in Developer Tools > States.
+
+   | Geometry Type | Default Display |
+   |---------------|-----------------|
+   | Polygon/MultiPolygon | Polygon boundary (marker hidden) |
+   | Point | Marker only |
+   | None | Marker at lat/lon |
+
+2. **Check visibility settings**
+
+   | Symptom | Possible Cause | Fix |
+   |---------|----------------|-----|
+   | No polygons visible | `show_warning_levels: false` | Set to `true` |
+   | No markers visible | `hide_markers_for_polygons: true` | Set to `false` |
+   | Markers disappear when zooming out | `marker_min_zoom` set | Lower the value or remove |
+   | Small incidents invisible | Polygon below threshold | Adjust `marker_polygon_threshold` |
+
+3. **Show both polygons and markers**
+
+   ```yaml
+   type: custom:abc-emergency-map-card
+   geo_location_sources:
+     - sensor.abc_emergency_auremer_incidents_total
+   hide_markers_for_polygons: false
+   ```
+
+4. **Check for configuration conflicts**
+
+   The card logs warnings to the browser console for problematic configurations:
+   - Open Developer Tools (F12) > Console
+   - Look for messages starting with "ABC Emergency Map:"
+   - Common warnings:
+     - "marker_min_zoom set but hide_markers_for_polygons is false"
+     - "marker_polygon_threshold set but hide_markers_for_polygons is false"
+
+5. **Point-only geometry incidents**
+
+   If an incident only has Point geometry (no polygon boundaries from the data source):
+   - Set `hide_markers_for_polygons: false` to ensure markers are visible
+   - These incidents display as markers, not polygons
+   - The `marker_min_zoom` and `marker_polygon_threshold` options still apply
+
+---
 
 ### Map is Blank/Grey
 

@@ -9,6 +9,7 @@ Complete reference for all ABC Emergency Map Card configuration options.
 - [Core Settings](#core-settings)
 - [Map Settings](#map-settings)
 - [Display Options](#display-options)
+- [Marker Visibility](#marker-visibility)
 - [Alert Colors](#alert-colors)
 - [Zone Styling](#zone-styling)
 - [History Trails](#history-trails)
@@ -121,6 +122,111 @@ show_warning_levels: true
 show_history: true
 show_badge: true
 show_new_indicator: true
+```
+
+---
+
+## Marker Visibility
+
+Control how entity markers are displayed relative to incident polygons. These options help reduce visual clutter when viewing large-scale incidents.
+
+### How Incidents Are Displayed
+
+Incidents can be displayed as either **markers** (pin icons) or **polygons** (boundary shapes):
+
+| Entity Has | Displays As |
+|------------|-------------|
+| Polygon/MultiPolygon geometry | Polygon boundary with popup |
+| Point-only geometry | Marker with popup |
+| No geometry (lat/lon only) | Marker with popup |
+
+By default, when an incident has polygon data, only the polygon is shown (the marker is hidden to reduce visual clutter).
+
+### Configuration Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `hide_markers_for_polygons` | boolean | `true` | Hide markers when incident has polygon geometry |
+| `marker_min_zoom` | number | - | Only show markers when zoomed in beyond this level (1-20) |
+| `marker_polygon_threshold` | number | - | Hide markers for polygons larger than this extent in meters |
+
+### Configuration Priority
+
+Options are applied in this order (first match hides the marker):
+
+1. **`show_warning_levels`** - If `false`, polygons never render (only markers show)
+2. **`hide_markers_for_polygons`** - If `true`, markers hidden for entities with polygon geometry
+3. **`marker_min_zoom`** - If set, markers hidden when zoom level is below threshold
+4. **`marker_polygon_threshold`** - If set, markers hidden for polygons larger than specified meters
+
+### Example: Show Markers for All Incidents
+
+Disable polygon rendering to show only markers:
+
+```yaml
+type: custom:abc-emergency-map-card
+geo_location_sources:
+  - sensor.abc_emergency_auremer_incidents_total
+show_warning_levels: false
+```
+
+### Example: Show Polygons Only (Hide Markers)
+
+Default behavior - markers hidden when polygon exists:
+
+```yaml
+type: custom:abc-emergency-map-card
+geo_location_sources:
+  - sensor.abc_emergency_auremer_incidents_total
+hide_markers_for_polygons: true
+```
+
+### Example: Show Both Polygons and Markers
+
+Display markers alongside polygon boundaries:
+
+```yaml
+type: custom:abc-emergency-map-card
+geo_location_sources:
+  - sensor.abc_emergency_auremer_incidents_total
+hide_markers_for_polygons: false
+```
+
+### Example: Show Markers Only When Zoomed In
+
+Show markers when zoom level exceeds 12 (closer view):
+
+```yaml
+type: custom:abc-emergency-map-card
+geo_location_sources:
+  - sensor.abc_emergency_auremer_incidents_total
+hide_markers_for_polygons: true
+marker_min_zoom: 12
+```
+
+### Example: Show Markers for Small Incidents Only
+
+Hide markers for large incidents (polygon extent > 10km):
+
+```yaml
+type: custom:abc-emergency-map-card
+geo_location_sources:
+  - sensor.abc_emergency_auremer_incidents_total
+hide_markers_for_polygons: true
+marker_polygon_threshold: 10000
+```
+
+### Example: Combine Zoom and Size Thresholds
+
+Show markers only when zoomed in AND incident is smaller than 5km:
+
+```yaml
+type: custom:abc-emergency-map-card
+geo_location_sources:
+  - sensor.abc_emergency_auremer_incidents_total
+hide_markers_for_polygons: true
+marker_min_zoom: 10
+marker_polygon_threshold: 5000
 ```
 
 ---
