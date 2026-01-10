@@ -7,8 +7,15 @@
 import { LitElement, html, css, TemplateResult, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import type { HomeAssistant } from "custom-card-helpers";
-import type { ABCEmergencyMapCardConfig, TileProviderId, DarkModeSetting, AlertColorPreset, AlertLevel } from "./types";
-import { ALERT_COLOR_PRESETS, ALERT_COLORS } from "./types";
+import type {
+  ABCEmergencyMapCardConfig,
+  TileProviderId,
+  DarkModeSetting,
+  AlertColorPreset,
+  AlertLevel,
+  ConfigWarning,
+} from "./types";
+import { ALERT_COLOR_PRESETS, ALERT_COLORS, validateVisibilityConfig } from "./types";
 
 /** Available tile provider options */
 const TILE_PROVIDERS: { value: TileProviderId; label: string }[] = [
@@ -228,6 +235,33 @@ export class ABCEmergencyMapCardEditor extends LitElement {
       font-size: 10px;
       font-weight: 500;
     }
+
+    .config-warning {
+      padding: 12px;
+      margin: 8px 0;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+
+    .config-warning.severity-warning {
+      background-color: rgba(255, 152, 0, 0.1);
+      border-left: 4px solid #ff9800;
+    }
+
+    .config-warning.severity-info {
+      background-color: rgba(33, 150, 243, 0.1);
+      border-left: 4px solid #2196f3;
+    }
+
+    .config-warning-message {
+      color: var(--primary-text-color);
+      margin-bottom: 4px;
+    }
+
+    .config-warning-suggestion {
+      color: var(--secondary-text-color);
+      font-size: 12px;
+    }
   `;
 
   public setConfig(config: ABCEmergencyMapCardConfig): void {
@@ -372,6 +406,8 @@ export class ABCEmergencyMapCardEditor extends LitElement {
             "hide_markers_for_polygons",
             this._config.hide_markers_for_polygons ?? true
           )}
+
+          ${this._renderConfigWarnings()}
 
           ${this._renderToggle(
             "Show History Trails",
@@ -546,6 +582,31 @@ export class ABCEmergencyMapCardEditor extends LitElement {
           @change=${(e: Event) => this._sliderChanged(e, configKey)}
         ></ha-slider>
       </div>
+    `;
+  }
+
+  /**
+   * Renders configuration warnings for conflicting visibility options.
+   */
+  private _renderConfigWarnings(): TemplateResult | typeof nothing {
+    if (!this._config) return nothing;
+
+    const warnings = validateVisibilityConfig(this._config);
+    if (warnings.length === 0) return nothing;
+
+    return html`
+      ${warnings.map(
+        (warning: ConfigWarning) => html`
+          <div class="config-warning severity-${warning.severity}">
+            <div class="config-warning-message">${warning.message}</div>
+            ${warning.suggestion
+              ? html`<div class="config-warning-suggestion">
+                  ${warning.suggestion}
+                </div>`
+              : nothing}
+          </div>
+        `
+      )}
     `;
   }
 

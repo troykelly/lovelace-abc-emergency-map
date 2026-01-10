@@ -55,6 +55,27 @@ export type DarkModeSetting = "auto" | "light" | "dark" | boolean;
 /** Default dark mode setting */
 export const DEFAULT_DARK_MODE: DarkModeSetting = "auto";
 
+/**
+ * Card configuration for ABC Emergency Map.
+ *
+ * ## Visibility Configuration Hierarchy
+ *
+ * The following options control incident visibility. They are applied in priority order:
+ *
+ * 1. **show_warning_levels** (boolean) - Master toggle for polygon rendering
+ *    - When `false`: No polygons rendered, all incidents show as markers only
+ *    - When `true` (default): Polygon rendering enabled
+ *
+ * 2. **hide_markers_for_polygons** (boolean) - Controls marker visibility for polygon entities
+ *    - When `true` (default): Incidents with polygons only show the polygon, no marker
+ *    - When `false`: Both polygon and marker are displayed
+ *    - Has no effect if show_warning_levels is false
+ *
+ * ## Common Pitfalls
+ *
+ * - Setting `show_warning_levels: false` with `hide_markers_for_polygons: true` is redundant
+ *   since polygons won't render anyway (a validation warning is shown)
+ */
 export interface ABCEmergencyMapCardConfig extends LovelaceCardConfig {
   type: "custom:abc-emergency-map-card";
   title?: string;
@@ -63,12 +84,20 @@ export interface ABCEmergencyMapCardConfig extends LovelaceCardConfig {
   default_zoom?: number;
   hours_to_show?: number;
   dark_mode?: DarkModeSetting;
+  /**
+   * Master toggle for polygon/warning level rendering.
+   * When false, all incidents render as markers only.
+   * @default true
+   */
   show_warning_levels?: boolean;
   /**
    * Whether to hide point markers for incidents that have polygon boundaries.
    * When true (default), incidents with polygon data only show the polygon.
    * When false, both the polygon and a point marker are displayed.
    * Point-only geometry always renders as a marker regardless of this setting.
+   *
+   * Note: Has no effect when show_warning_levels is false.
+   * @default true
    */
   hide_markers_for_polygons?: boolean;
   /** Tile provider identifier or 'custom' for custom URL */
@@ -410,4 +439,53 @@ export interface EntityHistoryData {
   color: string;
   /** Array of history points in chronological order */
   points: HistoryPoint[];
+}
+
+/**
+ * Severity levels for configuration warnings.
+ */
+export type ConfigWarningSeverity = "warning" | "info";
+
+/**
+ * A configuration validation warning.
+ */
+export interface ConfigWarning {
+  /** Unique identifier for this warning type */
+  id: string;
+  /** Severity level of the warning */
+  severity: ConfigWarningSeverity;
+  /** Warning message describing the issue */
+  message: string;
+  /** Suggestion for how to fix the issue */
+  suggestion?: string;
+}
+
+/**
+ * Validates visibility configuration options and returns any warnings.
+ * This helps users understand when their configuration may cause unexpected behavior.
+ *
+ * @param config - The card configuration to validate
+ * @returns Array of configuration warnings (empty if no issues found)
+ */
+export function validateVisibilityConfig(
+  config: Partial<ABCEmergencyMapCardConfig>
+): ConfigWarning[] {
+  const warnings: ConfigWarning[] = [];
+
+  // Check: hide_markers_for_polygons has no effect when show_warning_levels is false
+  if (
+    config.show_warning_levels === false &&
+    config.hide_markers_for_polygons === true
+  ) {
+    warnings.push({
+      id: "hide-markers-no-effect",
+      severity: "warning",
+      message:
+        "'hide_markers_for_polygons' has no effect when 'show_warning_levels' is false.",
+      suggestion:
+        "Polygon entities will render as markers only. Remove 'hide_markers_for_polygons' or set 'show_warning_levels: true'.",
+    });
+  }
+
+  return warnings;
 }

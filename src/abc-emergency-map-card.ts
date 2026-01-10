@@ -10,7 +10,11 @@ import { customElement, property, state } from "lit/decorators.js";
 import type { HomeAssistant } from "custom-card-helpers";
 import { styles } from "./styles";
 import type { ABCEmergencyMapCardConfig, TileProviderConfig } from "./types";
-import { DEFAULT_DARK_MODE, DEFAULT_HIDE_MARKERS_FOR_POLYGONS } from "./types";
+import {
+  DEFAULT_DARK_MODE,
+  DEFAULT_HIDE_MARKERS_FOR_POLYGONS,
+  validateVisibilityConfig,
+} from "./types";
 import { loadLeaflet, injectLeafletCSS } from "./leaflet-loader";
 import { resolveTileProvider } from "./tile-providers";
 import { EntityMarkerManager, getAllEntities } from "./entity-markers";
@@ -85,6 +89,24 @@ export class ABCEmergencyMapCard extends LitElement {
     if (!config) {
       throw new Error("Invalid configuration");
     }
+
+    // Validate visibility configuration and log any warnings
+    const warnings = validateVisibilityConfig(config);
+    warnings.forEach((warning) => {
+      const prefix = "ABC Emergency Map: Config";
+      if (warning.severity === "warning") {
+        console.warn(`${prefix} Warning - ${warning.message}`);
+        if (warning.suggestion) {
+          console.warn(`${prefix} Suggestion - ${warning.suggestion}`);
+        }
+      } else {
+        console.info(`${prefix} Info - ${warning.message}`);
+        if (warning.suggestion) {
+          console.info(`${prefix} Suggestion - ${warning.suggestion}`);
+        }
+      }
+    });
+
     this._config = {
       title: "ABC Emergency Map",
       default_zoom: 10,
