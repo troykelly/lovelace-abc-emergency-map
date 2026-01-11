@@ -29,10 +29,16 @@ const LEAFLET_VERSION = "1.9.4";
 
 /**
  * Home Assistant's local Leaflet assets
- * HA serves CSS and images locally, though JS is bundled into HA's frontend
+ * HA serves CSS and images locally. JS is bundled but DOES set window.L when loaded.
  */
 const HA_LEAFLET_CSS_URL = "/static/images/leaflet/leaflet.css";
 const HA_LEAFLET_IMAGES_PATH = "/static/images/leaflet/images/";
+
+/** Maximum time to wait for HA's Leaflet to load (ms) */
+const HA_LEAFLET_LOAD_TIMEOUT = 5000;
+
+/** Polling interval when waiting for window.L (ms) */
+const HA_LEAFLET_POLL_INTERVAL = 100;
 
 /** Primary CDN URLs for Leaflet assets (unpkg.com has CORS support) */
 const LEAFLET_CSS_URL = `https://unpkg.com/leaflet@${LEAFLET_VERSION}/dist/leaflet.css`;
@@ -322,7 +328,7 @@ function loadScript(url: string, integrity: string): Promise<void> {
  *
  * This can happen if:
  * 1. Another custom card has already loaded Leaflet
- * 2. HA's native map has been used (though it doesn't expose L globally)
+ * 2. HA's native map has been used (sets window.L when its chunk loads)
  *
  * @returns true if window.L exists and has a valid version
  */
@@ -336,14 +342,95 @@ function isLeafletAvailableGlobally(): boolean {
 }
 
 /**
- * Loads script with fallback support.
+ * Waits for window.L to become available.
  *
- * Checks for existing Leaflet first to avoid duplicate loads.
+ * @param timeout Maximum time to wait in ms
+ * @returns Promise that resolves when window.L is available, or rejects on timeout
+ */
+function waitForLeafletGlobal(timeout: number): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const startTime = Date.now();
+
+    const check = () => {
+      if (isLeafletAvailableGlobally()) {
+        resolve();
+        return;
+      }
+
+      if (Date.now() - startTime > timeout) {
+        reject(new Error("Timeout waiting for window.L"));
+        return;
+      }
+
+      setTimeout(check, HA_LEAFLET_POLL_INTERVAL);
+    };
+
+    check();
+  });
+}
+
+/**
+ * Attempts to trigger HA's Leaflet load by creating a hidden ha-map element.
  *
- * @returns Promise that resolves when script is loaded
+ * HA lazy-loads Leaflet when ha-map is first used. By creating a temporary
+ * hidden ha-map element, we can trigger this load and then access window.L.
+ *
+ * @returns Promise that resolves to true if successful, false otherwise
+ */
+async function triggerHALeafletLoad(): Promise<boolean> {
+  // Check if ha-map is a registered custom element
+  if (!customElements.get("ha-map")) {
+    console.log("ABC Emergency Map: ha-map not registered, skipping HA Leaflet trigger");
+    return false;
+  }
+
+  console.log("ABC Emergency Map: Triggering HA Leaflet load via ha-map element...");
+
+  // Create a hidden ha-map element to trigger Leaflet load
+  const container = document.createElement("div");
+  container.style.cssText = "position:absolute;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none;";
+
+  const haMap = document.createElement("ha-map") as HTMLElement & {
+    hass?: unknown;
+    zoom?: number;
+  };
+  // Set minimal required properties
+  haMap.zoom = 1;
+
+  container.appendChild(haMap);
+  document.body.appendChild(container);
+
+  try {
+    // Wait for window.L to become available
+    await waitForLeafletGlobal(HA_LEAFLET_LOAD_TIMEOUT);
+    const version = (window as unknown as { L: { version: string } }).L.version;
+    console.log(`ABC Emergency Map: HA Leaflet ${version} loaded successfully via ha-map trigger`);
+    return true;
+  } catch {
+    console.log("ABC Emergency Map: HA Leaflet trigger timed out, falling back to CDN");
+    return false;
+  } finally {
+    // Clean up the hidden element
+    container.remove();
+  }
+}
+
+/** Track if we loaded from HA's bundled Leaflet */
+let usedHALeaflet = false;
+
+/**
+ * Loads Leaflet script with multi-level fallback support.
+ *
+ * Strategy:
+ * 1. Check if Leaflet is already available (window.L)
+ * 2. Try to trigger HA's bundled Leaflet via ha-map element
+ * 3. Fall back to primary CDN (unpkg.com)
+ * 4. Fall back to secondary CDN (jsdelivr.net)
+ *
+ * @returns Promise that resolves when Leaflet is available
  */
 async function loadScriptWithFallback(): Promise<void> {
-  // Check if Leaflet is already available globally
+  // Strategy 1: Check if Leaflet is already available globally
   if (isLeafletAvailableGlobally()) {
     const existingVersion = (window as unknown as { L: { version: string } }).L.version;
     console.log(
@@ -352,9 +439,16 @@ async function loadScriptWithFallback(): Promise<void> {
     return;
   }
 
+  // Strategy 2: Try to trigger HA's bundled Leaflet load
+  const haLeafletLoaded = await triggerHALeafletLoad();
+  if (haLeafletLoaded) {
+    usedHALeaflet = true;
+    return;
+  }
+
   const errors: string[] = [];
 
-  // Try primary CDN
+  // Strategy 3: Try primary CDN
   try {
     await loadScript(LEAFLET_JS_URL, LEAFLET_JS_INTEGRITY);
     console.log("ABC Emergency Map: Loaded Leaflet JS from primary CDN");
@@ -362,11 +456,11 @@ async function loadScriptWithFallback(): Promise<void> {
   } catch (primaryError) {
     errors.push(`Primary CDN: ${primaryError}`);
     console.warn(
-      `ABC Emergency Map: Primary JS script failed, trying fallback...`
+      `ABC Emergency Map: Primary JS CDN failed, trying fallback...`
     );
   }
 
-  // Try fallback CDN
+  // Strategy 4: Try fallback CDN
   try {
     await loadScript(LEAFLET_JS_URL_FALLBACK, LEAFLET_JS_INTEGRITY);
     usedFallbackCDN = true;
@@ -401,10 +495,11 @@ function configureLeafletImagePath(): void {
  * Loads Leaflet library with optimal strategy for Cast compatibility.
  *
  * Loading Strategy:
- * 1. Check for existing window.L (from another card)
- * 2. Load CSS from HA local path first, fallback to CDN
- * 3. Load JS from CDN (HA doesn't serve JS separately)
- * 4. Configure marker images to use HA's local path
+ * 1. Check for existing window.L (from another card or HA)
+ * 2. Try to trigger HA's bundled Leaflet via hidden ha-map element
+ * 3. Load CSS from HA local path first, fallback to CDN
+ * 4. Load JS from CDN as last resort
+ * 5. Configure marker images to use HA's local path
  *
  * Uses a singleton pattern - multiple calls will return the same promise,
  * ensuring Leaflet is only loaded once even with multiple card instances.
@@ -452,14 +547,15 @@ export async function loadLeaflet(): Promise<typeof L> {
 
       leafletLoaded = true;
 
-      // Build status message
+      // Build status message showing what sources were used
       const sources: string[] = [];
+      if (usedHALeaflet) sources.push("HA bundled JS");
       if (usedHALocalCSS) sources.push("HA local CSS");
       if (usedFallbackCDN) sources.push("fallback CDN");
 
       console.log(
         `ABC Emergency Map: Leaflet ${L.version} ready` +
-          (sources.length > 0 ? ` (${sources.join(", ")})` : "")
+          (sources.length > 0 ? ` (${sources.join(", ")})` : " (CDN)")
       );
       return L;
     } catch (error) {

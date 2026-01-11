@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Existing Leaflet Detection** - Checks for `window.L` before loading from CDN
   - Avoids duplicate Leaflet loads if another card has already loaded it
   - Reduces resource usage and potential conflicts
+- **HA Leaflet Trigger** - Attempts to use HA's bundled Leaflet via hidden ha-map element
+  - If HA's map has been used in session, reuses its Leaflet (no CDN needed)
+  - Polls for up to 5 seconds for `window.L` to become available
+  - Falls back to CDN gracefully if ha-map not registered
 - Enhanced logging to indicate which asset sources are being used
 
 ## [1.2.0] - 2026-01-10
