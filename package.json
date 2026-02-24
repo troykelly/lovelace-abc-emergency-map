@@ -34,7 +34,7 @@
     "test:all": "pnpm run typecheck && pnpm run lint && pnpm run test && pnpm run build"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.2",
+    "@eslint/js": "^9.39.3",
     "@rollup/plugin-commonjs": "^29.0.0",
     "@rollup/plugin-node-resolve": "^16.0.0",
     "@rollup/plugin-terser": "^0.4.4",
